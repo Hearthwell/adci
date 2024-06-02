@@ -18,8 +18,13 @@ $(OUT_DIR)/%.c.o:$(EXAMPLES_DIR)/%.c
 main: $(SRC_OBJ) $(OUT_DIR)/main.c.o
 	$(CC) $^ -o $@ $(C_LIBS)
 
-tests: $(SRC_OBJ)
-	@echo "TODO, IMPLEMENT"
+TEST_DIR:=test
+TEST_FILES:=$(wildcard $(TEST_DIR)/*.cpp)
+TEST_OBJ:=$(TEST_FILES:$(TEST_DIR)/%.cpp=$(OUT_DIR)/%.cpp.o)
+$(OUT_DIR)/%.cpp.o:$(TEST_DIR)/%.cpp
+	g++ $(C_FLAGS) -c -o $@ $<
+tests: $(SRC_OBJ) $(TEST_OBJ) 
+	g++ $^ -o $@ -lgtest
 
 clean:
 	rm -rf $(OUT_DIR)/*
