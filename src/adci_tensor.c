@@ -11,7 +11,7 @@ static void adci_check_tensor_dim(struct adci_tensor **inputs){
     }
 }
 
-static unsigned int adci_tensor_element_count_ext(unsigned int n_dims, unsigned int *shape){
+ADCI_TEST_VISIBILITY unsigned int adci_tensor_element_count_ext(unsigned int n_dims, unsigned int *shape){
     unsigned int size = 1;
     for(unsigned int i = 0; i < n_dims; i++)
         size *= shape[i];
@@ -22,7 +22,7 @@ static unsigned int adci_tensor_element_count(struct adci_tensor *tensor){
     return adci_tensor_element_count_ext(tensor->n_dimension, tensor->shape);
 }
 
-static struct adci_tensor * adci_compute_add(struct adci_tensor **inputs, struct adci_tensor *output){
+ADCI_TEST_VISIBILITY struct adci_tensor * adci_compute_add(struct adci_tensor **inputs, struct adci_tensor *output){
     adci_check_tensor_dim(inputs);
     unsigned int tensor_volume = 1;
     for(unsigned int i = 0; i < inputs[0]->n_dimension; i++) tensor_volume *= inputs[0]->shape[i];
@@ -38,7 +38,7 @@ static struct adci_tensor * adci_compute_add(struct adci_tensor **inputs, struct
     return output;
 }
 
-static struct adci_tensor * adci_compute_reshape(struct adci_tensor *input, unsigned int *shape, unsigned int n_dims){
+ADCI_TEST_VISIBILITY struct adci_tensor * adci_compute_reshape(struct adci_tensor *input, unsigned int *shape, unsigned int n_dims){
     const unsigned int required_count = adci_tensor_element_count(input);
     const unsigned int reshape_count = adci_tensor_element_count_ext(n_dims, shape);
     assert(required_count == reshape_count);
