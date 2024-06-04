@@ -1,5 +1,3 @@
-#include <assert.h>
-
 #include "adci_common.h"
 #include "adci_tensor.h"
 

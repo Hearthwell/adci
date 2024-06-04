@@ -20,6 +20,8 @@ struct adci_tensor{
     unsigned int n_dimension;
     unsigned int shape[ADCI_TENSOR_MAX_DIM];
     enum adci_tensor_type dtype;
+    /* TODO, ADD SUPPORT FOR NAME */
+    struct adci_string *name;
     void *data;
 };
 
