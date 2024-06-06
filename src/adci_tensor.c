@@ -1,5 +1,6 @@
 #include "adci_common.h"
 #include "adci_tensor.h"
+#include "adci_logging.h"
 
 /* TODO, ADD SOME KIND OF MACRO TO DISABLE CHECKS TO SPEED UP INFERENCE */
 static void adci_check_tensor_dim(struct adci_tensor **inputs){
@@ -72,6 +73,10 @@ bool adci_tensor_free(struct adci_tensor *tensor){
 }
 
 unsigned int adci_tensor_set(struct adci_tensor *tensor, const void *data){
+    if(tensor->data == NULL){
+        ADCI_LOG(ADCI_ERROR, "TRYING TO SET UNALLOCATED TENSOR, ABORT, %s", __func__);
+        return 0;
+    }
     const unsigned int size = adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype);
     memcpy(tensor->data, data, size);
     return size;
