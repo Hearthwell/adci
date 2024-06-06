@@ -19,6 +19,7 @@
 #endif
 
 #define ADCI_ALLOC(_size) malloc(_size)
+#define ADCI_REALLOC(_ptr, _size) realloc(_ptr, _size)
 #define ADCI_FREE(_ptr) free(_ptr)
 
 struct adci_string{
@@ -28,5 +29,18 @@ struct adci_string{
 
 struct adci_string * adci_init_str(const char *str, unsigned int length);
 bool adci_clean_str(struct adci_string *str);
+
+struct adci_vector{
+    void *data;
+    unsigned int length;
+    unsigned int capacity;
+    unsigned int bsize;
+};
+
+struct adci_vector * adci_vector_init(unsigned int element_bsize);
+bool adci_vector_add(struct adci_vector *vector, const void *element);
+bool adci_vector_remove(struct adci_vector *vector, const void *element);
+void * adci_vector_get(struct adci_vector *vector, unsigned int index);
+bool adci_vector_free(struct adci_vector *vector);
 
 #endif //ADCI_COMMON_H
