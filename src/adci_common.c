@@ -27,6 +27,16 @@ struct adci_vector adci_vector_init(unsigned int element_bsize){
     return vect;
 }
 
+struct adci_vector adci_vector_from_array(void *elements, unsigned int count, unsigned int element_bsize){
+    struct adci_vector vect = {0};
+    vect.bsize = element_bsize;
+    vect.capacity = (count < DEFAULT_VECT_CAPACITY) ? DEFAULT_VECT_CAPACITY : count;
+    vect.data = ADCI_ALLOC(vect.capacity * vect.bsize);
+    vect.length = count;
+    memcpy(vect.data, elements, vect.length * vect.bsize);
+    return vect;
+}
+
 bool adci_vector_add(struct adci_vector *vector, const void *element){
     if(vector->length == vector->capacity){
         vector->capacity *= 2;

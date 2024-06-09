@@ -15,6 +15,16 @@ TEST(ADCI_VECTOR_SUITE_NAME, adci_vector_init){
     adci_vector_free(&vector);
 }
 
+TEST(ADCI_VECTOR_SUITE_NAME, adci_vector_from_array){
+    unsigned int elements[] = {56, 78, 98};
+    struct adci_vector vector = adci_vector_from_array(elements, sizeof(elements) / sizeof(unsigned int), sizeof(unsigned int));
+    EXPECT_NE(vector.data, nullptr);
+    EXPECT_EQ(vector.length, 3);
+    EXPECT_EQ(vector.capacity, 10);
+    EXPECT_EQ(vector.bsize, sizeof(unsigned int));
+    adci_vector_free(&vector);
+}
+
 TEST(ADCI_VECTOR_SUITE_NAME, adci_vector_add){
     struct adci_vector vector = adci_vector_init(sizeof(unsigned int));
     const unsigned int value = 107;
