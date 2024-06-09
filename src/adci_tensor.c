@@ -2,13 +2,7 @@
 #include "adci_tensor.h"
 #include "adci_logging.h"
 
-/* TODO, ADD SOME KIND OF MACRO TO DISABLE CHECKS TO SPEED UP INFERENCE */
-static void adci_check_tensor_dim(struct adci_tensor **inputs){
-    assert(inputs[0]->n_dimension == inputs[1]->n_dimension);
-    for(unsigned int i = 0; i < inputs[0]->n_dimension; i++){
-        assert(inputs[0]->shape[i] == inputs[1]->shape[i]);
-    }
-}
+/* PRIVATE FUNCTIONS */
 
 ADCI_TEST_VISIBILITY unsigned int adci_tensor_element_count_ext(unsigned int n_dims, unsigned int *shape){
     unsigned int size = 1;
@@ -17,37 +11,11 @@ ADCI_TEST_VISIBILITY unsigned int adci_tensor_element_count_ext(unsigned int n_d
     return size;
 }
 
-static unsigned int adci_tensor_element_count(struct adci_tensor *tensor){
+/* END PRIVATE FUNCTIONS */
+
+unsigned int adci_tensor_element_count(struct adci_tensor *tensor){
     return adci_tensor_element_count_ext(tensor->n_dimension, tensor->shape);
 }
-
-ADCI_TEST_VISIBILITY struct adci_tensor * adci_compute_add(struct adci_tensor **inputs, struct adci_tensor *output){
-    adci_check_tensor_dim(inputs);
-    unsigned int tensor_volume = 1;
-    for(unsigned int i = 0; i < inputs[0]->n_dimension; i++) tensor_volume *= inputs[0]->shape[i];
-    #define ADD_FOR_TYPE(_type) ((_type*)output->data)[i] = ((_type*)inputs[0]->data)[i] + ((_type*)inputs[1]->data)[i]
-    for(unsigned int i = 0; i < tensor_volume; i++){
-        switch (inputs[0]->dtype){
-            case ADCI_F32: 
-                ADD_FOR_TYPE(float);
-                break;
-            /* TODO, HANDLE MORE TYPES */
-        }
-    }
-    return output;
-}
-
-ADCI_TEST_VISIBILITY struct adci_tensor * adci_compute_reshape(struct adci_tensor *input, unsigned int *shape, unsigned int n_dims){
-    const unsigned int required_count = adci_tensor_element_count(input);
-    const unsigned int reshape_count = adci_tensor_element_count_ext(n_dims, shape);
-    assert(required_count == reshape_count);
-    for(unsigned int i = 0; i < n_dims; i++)
-        input->shape[i] = shape[i];
-    input->n_dimension = n_dims;
-    return input;
-}
-
-/* END PRIVATE FUNCTIONS */
 
 struct adci_tensor * adci_tensor_init(unsigned int n_dims, const unsigned int *shape, enum adci_tensor_type type){
     struct adci_tensor *tensor = (struct adci_tensor *) ADCI_ALLOC(sizeof(struct adci_tensor));
@@ -108,15 +76,4 @@ unsigned int adci_tensor_dtype_size(enum adci_tensor_type dtype){
     }
     assert("SHOULD NEVER REACH" == 0);
     return 0;
-}
-
-struct adci_tensor * adci_tensor_compute_op(struct adci_tensor **inputs, struct adci_tensor *output, enum adci_tensor_op op){
-    switch (op){
-    case ADCI_TENSOR_ADD: return adci_compute_add(inputs, output);
-    case ADCI_TENSOR_RESHAPE: return adci_compute_reshape(inputs[0], inputs[1]->shape, adci_tensor_element_count(inputs[1]));
-    default:
-        assert("TODO, OPERATION NOT IMPLEMENTED YET" == 0);
-    }
-    assert("SHOULD NEVER REACH" == 0);
-    return NULL;
 }

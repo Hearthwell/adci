@@ -11,6 +11,9 @@
 /* PRESENT ON API FUNCTIONS, ANY FUNCTION WITHOUT THIS MACRO ON THE SIGNATURE IS NOT TO BE CALLED DIRECTLY */
 #define ADCI_API
 
+/* PRESENT ON FUNCTIONS WITH ASSERTIONS THAT CAN KILL THE PROGRAM */
+#define ADCI_EXIT_POINT
+
 #ifdef ADCI_TEST
 /* TO MAKE PRIVATE FUNCTIONS PUBLIC FOR TEST PURPOSES */
 #define ADCI_TEST_VISIBILITY
@@ -41,7 +44,7 @@ struct adci_vector adci_vector_init(unsigned int element_bsize);
 struct adci_vector adci_vector_from_array(void *elements, unsigned int count, unsigned int element_bsize);
 bool adci_vector_add(struct adci_vector *vector, const void *element);
 bool adci_vector_remove(struct adci_vector *vector, const void *element);
-void * adci_vector_get(struct adci_vector *vector, unsigned int index);
+void * adci_vector_get(const struct adci_vector *vector, unsigned int index);
 bool adci_vector_free(struct adci_vector *vector);
 
 #endif //ADCI_COMMON_H

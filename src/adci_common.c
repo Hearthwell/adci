@@ -59,7 +59,7 @@ bool adci_vector_remove(struct adci_vector *vector, const void *element){
     return false;
 }
 
-void * adci_vector_get(struct adci_vector *vector, unsigned int index){
+void * adci_vector_get(const struct adci_vector *vector, unsigned int index){
     return (uint8_t *)vector->data + index * vector->bsize;
 }
 
