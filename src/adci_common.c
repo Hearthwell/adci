@@ -18,12 +18,12 @@ bool adci_clean_str(struct adci_string *str){
     return true;
 }
 
-struct adci_vector * adci_vector_init(unsigned int element_bsize){
-    struct adci_vector *vect = ADCI_ALLOC(sizeof(struct adci_vector));
-    vect->bsize = element_bsize;
-    vect->capacity = DEFAULT_VECT_CAPACITY;
-    vect->data = ADCI_ALLOC(vect->capacity * vect->bsize);
-    vect->length = 0;
+struct adci_vector adci_vector_init(unsigned int element_bsize){
+    struct adci_vector vect = {0};
+    vect.bsize = element_bsize;
+    vect.capacity = DEFAULT_VECT_CAPACITY;
+    vect.data = ADCI_ALLOC(vect.capacity * vect.bsize);
+    vect.length = 0;
     return vect;
 }
 
@@ -56,6 +56,5 @@ void * adci_vector_get(struct adci_vector *vector, unsigned int index){
 bool adci_vector_free(struct adci_vector *vector){
     ADCI_FREE(vector->data);
     vector->data = NULL;
-    ADCI_FREE(vector);
     return true;
 }
