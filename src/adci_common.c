@@ -1,6 +1,8 @@
 #include "adci_common.h"
 
 #define DEFAULT_VECT_CAPACITY 10
+#define DEFAULT_SET_CAPACITY 10
+#define SET_COLLISION_TRESHOLD 5
 
 struct adci_string * adci_init_str(const char *buffer, unsigned int length){
     struct adci_string *str = (struct adci_string *)ADCI_ALLOC(sizeof(struct adci_string));
@@ -67,4 +69,109 @@ bool adci_vector_free(struct adci_vector *vector){
     ADCI_FREE(vector->data);
     vector->data = NULL;
     return true;
+}
+
+/* SET IMPLEMENTATION */
+struct adci_set_node{
+    void *data;
+    struct adci_set_node *next;
+};
+
+/* PRIVATE FUNCTIONS */
+
+static unsigned int adci_set_defaut_hasher(const struct adci_set *set, const void *data){
+    unsigned long hash = 5381;
+    for(unsigned int i = 0; i < set->bsize; i++)
+        hash = ((hash << 5) + hash) + ((uint8_t*)data)[i];
+    return hash;
+}
+
+static void adci_set_copy_data(struct adci_set *previous, struct adci_set *set);
+
+static bool adci_set_add_node(struct adci_set *set, struct adci_set_node *current){
+    unsigned int index = set->hasher(set, current->data) % set->capacity;
+    struct adci_set_node *node = set->data[index];
+    unsigned int depth = 0;
+    while(node && node->next != NULL && depth < SET_COLLISION_TRESHOLD){
+        if(memcmp(node->data, current->data, set->bsize) == 0) return false;
+        node = node->next;
+        depth++;
+    }
+    if(depth >= SET_COLLISION_TRESHOLD){
+        struct adci_set previous = *set;
+        set->capacity *= 2;
+        set->data = ADCI_ALLOC(set->capacity * sizeof(struct adci_set_node *));
+        set->length = 0;
+        adci_set_copy_data(&previous, set);
+        ADCI_FREE(previous.data);
+        return adci_set_add_node(set, current);
+    }
+    if(!node) set->data[index] = current;
+    else node->next = current;
+    set->length++;
+    return true;
+}
+
+static void adci_set_copy_data(struct adci_set *previous, struct adci_set *set){
+    for(unsigned int i = 0; i < previous->capacity; i++){
+        struct adci_set_node *current = previous->data[i];
+        while(current){
+            struct adci_set_node *temp = current;
+            current = current->next;
+            temp->next = NULL;
+            adci_set_add_node(set, temp);
+        }
+    }
+}
+
+/* END PRIVATE FUNCTIONS */
+
+adci_set_hash adci_set_get_default_hasher(){
+    return adci_set_defaut_hasher;
+}
+
+struct adci_set adci_set_init(unsigned int element_bsize, adci_set_hash hasher){
+    struct adci_set set = {.bsize = element_bsize, .hasher = hasher, .length = 0};
+    if(hasher == NULL) set.hasher = adci_set_defaut_hasher;
+    set.capacity = DEFAULT_SET_CAPACITY;
+    set.data = ADCI_ALLOC(set.capacity * sizeof(struct adci_set_node *));
+    memset(set.data, 0, set.capacity * sizeof(struct adci_set_node *));
+    return set;
+}
+
+void adci_set_free(struct adci_set *set){
+    for(unsigned int i = 0; i < set->capacity; i++){
+        struct adci_set_node *current = set->data[i];
+        while(current != NULL){
+            struct adci_set_node *temp = current;
+            current = current->next;
+            ADCI_FREE(temp->data);
+            ADCI_FREE(temp);
+        }
+    }
+    ADCI_FREE(set->data);
+    set->data = NULL;
+}
+
+bool adci_set_add(struct adci_set *set, const void *element){
+    struct adci_set_node *current = ADCI_ALLOC(sizeof(struct adci_set_node));
+    current->data = ADCI_ALLOC(set->bsize);
+    memcpy(current->data, element, set->bsize);
+    current->next = NULL;
+    if(!adci_set_add_node(set, current)){
+        ADCI_FREE(current->data);
+        ADCI_FREE(current);
+        return false;
+    }
+    return true;
+}
+
+bool adci_set_has(struct adci_set set, const void *element){
+    unsigned int index = set.hasher(&set, element) % set.capacity;
+    struct adci_set_node *current = set.data[index];
+    while(current){
+        if(memcmp(element, current->data, set.bsize) == 0) return true;
+        current = current->next;
+    }
+    return false;
 }

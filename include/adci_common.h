@@ -47,4 +47,22 @@ bool adci_vector_remove(struct adci_vector *vector, const void *element);
 void * adci_vector_get(const struct adci_vector *vector, unsigned int index);
 bool adci_vector_free(struct adci_vector *vector);
 
+struct adci_set_node;
+struct adci_set;
+typedef unsigned int (*adci_set_hash)(const struct adci_set *set, const void *data);
+struct adci_set{
+    struct adci_set_node **data;
+    unsigned int length;
+    unsigned int capacity;
+    unsigned int bsize;
+    adci_set_hash hasher;
+};
+
+adci_set_hash adci_set_get_default_hasher();
+struct adci_set adci_set_init(unsigned int element_bsize, adci_set_hash hasher);
+void adci_set_free(struct adci_set *set);
+
+bool adci_set_add(struct adci_set *set, const void *element);
+bool adci_set_has(struct adci_set set, const void *element);
+
 #endif //ADCI_COMMON_H
