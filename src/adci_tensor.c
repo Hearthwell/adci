@@ -46,17 +46,19 @@ struct adci_tensor * adci_tensor_init_2d(unsigned int dim1, unsigned int dim2, e
     return tensor;
 }
 
-bool adci_tensor_alloc(struct adci_tensor *tensor){
+void adci_tensor_alloc(struct adci_tensor *tensor){
     tensor->data = ADCI_ALLOC(adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype));
-    return tensor->data != NULL;
 }
 
-bool adci_tensor_free(struct adci_tensor *tensor){
+void adci_tensor_alloc_set(struct adci_tensor *tensor, const void *data){
+    adci_tensor_alloc(tensor);
+    adci_tensor_set(tensor, data);
+}
+
+void adci_tensor_free(struct adci_tensor *tensor){
     ADCI_FREE(tensor->data);
     tensor->data = NULL;
     ADCI_FREE(tensor);
-    /* REMOVE AND MAKE FUNCTION VOID */
-    return true;
 }
 
 unsigned int adci_tensor_set(struct adci_tensor *tensor, const void *data){
