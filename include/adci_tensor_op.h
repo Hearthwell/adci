@@ -18,12 +18,15 @@ enum adci_tensor_op{
     ADCI_TENSOR_RESHAPE,
     ADCI_TENSOR_REDUCE_MAX,
     ADCI_TENSOR_SOFTMAX,
-    ADCI_TENSOR_TRANSPOSE_CONV
+    ADCI_TENSOR_TRANSPOSE_CONV,
+    ADCI_TENSOR_INPUT
 };
 
-void ADCI_EXIT_POINT adci_tensor_add(struct adci_tensor **inputs, struct adci_tensor *output);
-void ADCI_EXIT_POINT adci_tensor_reshape(struct adci_tensor *input, unsigned int *shape, unsigned int n_dims);
+/* SHOULD NOT BE USED DIRECTLY NORMALY */
+void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_reshape(struct adci_vector inputs, struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output);
 
-void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_tensor **inputs, struct adci_tensor *output, enum adci_tensor_op op);
+void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op);
 
 #endif //ADCI_TENSOR_OP_H
