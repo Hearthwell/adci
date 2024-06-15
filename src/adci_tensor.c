@@ -27,6 +27,25 @@ struct adci_tensor * adci_tensor_init(unsigned int n_dims, const unsigned int *s
     return tensor;
 }
 
+struct adci_tensor * adci_tensor_init_1d(unsigned int count, enum adci_tensor_type type){
+    struct adci_tensor *tensor = (struct adci_tensor *) ADCI_ALLOC(sizeof(struct adci_tensor));
+    tensor->n_dimension = 1;
+    tensor->data = NULL;
+    tensor->shape[0] = count;
+    tensor->dtype = type;
+    return tensor;
+}
+
+struct adci_tensor * adci_tensor_init_2d(unsigned int dim1, unsigned int dim2, enum adci_tensor_type type){
+    struct adci_tensor *tensor = (struct adci_tensor *) ADCI_ALLOC(sizeof(struct adci_tensor));
+    tensor->n_dimension = 2;
+    tensor->data = NULL;
+    tensor->shape[0] = dim1;
+    tensor->shape[1] = dim2;
+    tensor->dtype = type;
+    return tensor;
+}
+
 bool adci_tensor_alloc(struct adci_tensor *tensor){
     tensor->data = ADCI_ALLOC(adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype));
     return tensor->data != NULL;
@@ -42,7 +61,7 @@ bool adci_tensor_free(struct adci_tensor *tensor){
 
 unsigned int adci_tensor_set(struct adci_tensor *tensor, const void *data){
     if(tensor->data == NULL){
-        ADCI_LOG(ADCI_ERROR, "TRYING TO SET UNALLOCATED TENSOR, ABORT, %s", __func__);
+        ADCI_LOG(ADCI_ERROR, "TRYING TO SET UNALLOCATED TENSOR, ABORT");
         return 0;
     }
     const unsigned int size = adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype);
@@ -73,6 +92,8 @@ bool adci_tensor_clean_view(struct adci_tensor *view){
 unsigned int adci_tensor_dtype_size(enum adci_tensor_type dtype){
     switch (dtype){
     case ADCI_F32: return sizeof(float);
+    case ADCI_I32: return sizeof(int32_t);
+    case ADCI_I8:  return sizeof(int8_t); 
     }
     assert("SHOULD NEVER REACH" == 0);
     return 0;

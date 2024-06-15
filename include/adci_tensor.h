@@ -8,9 +8,10 @@
 /* TODO, FOR NOW, ONLY SUPPORTED TYPE IS F32, ADD SUPPORT FOR OTHER TYPES (AT LEAST INT8) */
 enum adci_tensor_type{
     ADCI_F32,
+    ADCI_I32,
+    ADCI_I8,
     /*
     ADCI_F16,
-    ADCI_I8,
     ADCI_I4
     */
 };
@@ -26,6 +27,8 @@ struct adci_tensor{
 };
 
 struct adci_tensor * adci_tensor_init(unsigned int n_dims, const unsigned int *shape, enum adci_tensor_type type);
+struct adci_tensor * adci_tensor_init_1d(unsigned int count, enum adci_tensor_type type);
+struct adci_tensor * adci_tensor_init_2d(unsigned int dim1, unsigned int dim2, enum adci_tensor_type type);
 bool adci_tensor_alloc(struct adci_tensor *tensor);
 bool adci_tensor_free(struct adci_tensor *tensor);
 
