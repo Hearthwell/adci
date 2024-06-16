@@ -175,3 +175,33 @@ bool adci_set_has(struct adci_set set, const void *element){
     }
     return false;
 }
+
+struct adci_set_iterator adci_set_get_iterator(struct adci_set *set){
+    struct adci_set_iterator iterator = {.set = set, .done = false};
+    for(unsigned int i = 0; i < set->capacity; i++){
+        iterator.index = i;
+        iterator.current = set->data[i];
+        if(iterator.current) break;
+    }
+    return iterator;
+}
+
+void * adci_set_get_next(struct adci_set_iterator *iterator){
+    if(iterator->done) return NULL;
+    if(!iterator->current){
+        for(++iterator->index; iterator->index < iterator->set->capacity; iterator->index++){
+            if(!iterator->set->data[iterator->index]) continue;
+            iterator->current = iterator->set->data[iterator->index];
+            break;
+        }
+    }
+
+    if(!iterator->current){
+        iterator->done = true;
+        return NULL;
+    } 
+
+    struct adci_set_node *current =  iterator->current;
+    iterator->current = iterator->current->next;
+    return current->data;
+}

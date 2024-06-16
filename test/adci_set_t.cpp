@@ -53,3 +53,20 @@ TEST(ADCI_SET_SUITE_NAME, adci_set_has){
     EXPECT_FALSE(adci_set_has(set, (unsigned int *)&value)); 
     adci_set_free(&set);
 }
+
+TEST(ADCI_SET_SUITE_NAME, adci_set_iterator){
+    adci_set set = adci_set_init(sizeof(unsigned int *), NULL);
+    const unsigned int count = 10;
+    for(unsigned int i = 0; i < count; i++){
+        uint64_t value = i;
+        adci_set_add(&set, &value);   
+    }
+    struct adci_set_iterator iter = adci_set_get_iterator(&set);
+    unsigned int iteration_count = 0;
+    do{
+        adci_set_get_next(&iter);
+        iteration_count++;
+    }while(!iter.done);
+    EXPECT_EQ(iteration_count - 1, count);
+    adci_set_free(&set);
+}

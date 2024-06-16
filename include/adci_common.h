@@ -48,6 +48,7 @@ void * adci_vector_get(const struct adci_vector *vector, unsigned int index);
 bool adci_vector_free(struct adci_vector *vector);
 
 struct adci_set_node;
+struct adci_set_iterator;
 struct adci_set;
 typedef unsigned int (*adci_set_hash)(const struct adci_set *set, const void *data);
 struct adci_set{
@@ -58,11 +59,21 @@ struct adci_set{
     adci_set_hash hasher;
 };
 
+struct adci_set_iterator{
+    struct adci_set *set;
+    unsigned int index;
+    struct adci_set_node *current;
+    bool done;
+};
+
 adci_set_hash adci_set_get_default_hasher();
 struct adci_set adci_set_init(unsigned int element_bsize, adci_set_hash hasher);
 void adci_set_free(struct adci_set *set);
 
 bool adci_set_add(struct adci_set *set, const void *element);
 bool adci_set_has(struct adci_set set, const void *element);
+/* NOTHING TO FREE WHEN USING AN ITERATOR */
+struct adci_set_iterator adci_set_get_iterator(struct adci_set *set);
+void * adci_set_get_next(struct adci_set_iterator *iterator); 
 
 #endif //ADCI_COMMON_H
