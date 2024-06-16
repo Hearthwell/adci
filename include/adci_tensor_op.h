@@ -28,5 +28,5 @@ void ADCI_EXIT_POINT adci_tensor_reshape(struct adci_vector inputs, struct adci_
 void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output);
 
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op);
-
+const char * adci_tensor_op_str(enum adci_tensor_op op);
 #endif //ADCI_TENSOR_OP_H

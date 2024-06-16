@@ -1,3 +1,4 @@
+#include "adci_common.h"
 #include "adci_tensor_op.h"
 #include "adci_logging.h"
 
@@ -116,3 +117,27 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     }
     assert("SHOULD NEVER REACH" == 0);
 }
+
+const char * adci_tensor_op_str(enum adci_tensor_op op){
+    #define OP_STR_CASE(_op) case _op: return ADCI_TOKEN2STR(_op)
+    switch (op){
+        OP_STR_CASE(ADCI_TENSOR_COPY);
+        OP_STR_CASE(ADCI_TENSOR_ADD);
+        OP_STR_CASE(ADCI_TENSOR_SUB);
+        OP_STR_CASE(ADCI_TENDOR_MUL);
+        OP_STR_CASE(ADCI_TENSOR_BATCH_MATMUL);
+        OP_STR_CASE(ADCI_TENSOR_PAD);
+        OP_STR_CASE(ADCI_TENSOR_CONV2D);
+        OP_STR_CASE(ADCI_TENSOR_PRELU);
+        OP_STR_CASE(ADCI_TENSOR_CONCAT);
+        OP_STR_CASE(ADCI_TENSOR_AVG_POOL2D);
+        OP_STR_CASE(ADCI_TENSOR_TRANSPOSE);
+        OP_STR_CASE(ADCI_TENSOR_RESHAPE);
+        OP_STR_CASE(ADCI_TENSOR_REDUCE_MAX);
+        OP_STR_CASE(ADCI_TENSOR_SOFTMAX);
+        OP_STR_CASE(ADCI_TENSOR_TRANSPOSE_CONV);
+        OP_STR_CASE(ADCI_TENSOR_INPUT);
+        default: return "INVALID OP";
+    }
+}
+    

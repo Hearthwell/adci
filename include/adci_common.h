@@ -25,6 +25,8 @@
 #define ADCI_REALLOC(_ptr, _size) realloc(_ptr, _size)
 #define ADCI_FREE(_ptr) free(_ptr)
 
+#define ADCI_TOKEN2STR(_token) #_token
+
 struct adci_string{
     char *str;
     unsigned int size;
@@ -45,7 +47,7 @@ struct adci_vector adci_vector_from_array(void *elements, unsigned int count, un
 bool adci_vector_add(struct adci_vector *vector, const void *element);
 bool adci_vector_remove(struct adci_vector *vector, const void *element);
 void * adci_vector_get(const struct adci_vector *vector, unsigned int index);
-bool adci_vector_free(struct adci_vector *vector);
+void adci_vector_free(struct adci_vector *vector);
 
 struct adci_set_node;
 struct adci_set_iterator;

@@ -65,10 +65,10 @@ void * adci_vector_get(const struct adci_vector *vector, unsigned int index){
     return (uint8_t *)vector->data + index * vector->bsize;
 }
 
-bool adci_vector_free(struct adci_vector *vector){
+void adci_vector_free(struct adci_vector *vector){
+    if(!vector->data) return;
     ADCI_FREE(vector->data);
     vector->data = NULL;
-    return true;
 }
 
 /* SET IMPLEMENTATION */

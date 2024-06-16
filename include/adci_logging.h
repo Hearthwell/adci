@@ -4,7 +4,7 @@
 #include "adci_common.h"
 
 /* TODO, ADD SUPPORT FOR THE LEVELS */
-#define ADCI_LOG(_level, _fmt, ...) printf(_fmt "%s \n", ##__VA_ARGS__, __func__)
+#define ADCI_LOG(_level, _fmt, ...) printf("I %s; " _fmt "\n", __func__, ##__VA_ARGS__)
 
 enum adci_logging_level{
     ADCI_ERROR,
