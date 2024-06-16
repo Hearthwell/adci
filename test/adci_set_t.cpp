@@ -27,6 +27,21 @@ TEST(ADCI_SET_SUITE_NAME, adci_set_add){
     adci_set_free(&set);
 }
 
+TEST(ADCI_SET_SUITE_NAME, adci_set_add_exists){
+    adci_set set = adci_set_init(sizeof(unsigned int *), NULL);
+    const unsigned int count = 10;
+    for(unsigned int i = 0; i < count; i++){
+        uint64_t value = i;
+        adci_set_add(&set, &value);   
+    }
+    EXPECT_EQ(set.length, count);
+    uint64_t value = 5;
+    bool added = adci_set_add(&set, &value);
+    EXPECT_FALSE(added);
+    EXPECT_EQ(set.length, count);
+    adci_set_free(&set);
+}
+
 TEST(ADCI_SET_SUITE_NAME, adci_set_add_large){
     adci_set set = adci_set_init(sizeof(unsigned int *), NULL);
     const unsigned int count = 100;
