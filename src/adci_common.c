@@ -134,8 +134,9 @@ struct adci_set adci_set_init(unsigned int element_bsize, adci_set_hash hasher){
     struct adci_set set = {.bsize = element_bsize, .hasher = hasher, .length = 0};
     if(hasher == NULL) set.hasher = adci_set_defaut_hasher;
     set.capacity = DEFAULT_SET_CAPACITY;
-    set.data = ADCI_ALLOC(set.capacity * sizeof(struct adci_set_node *));
-    memset(set.data, 0, set.capacity * sizeof(struct adci_set_node *));
+    const unsigned int size = set.capacity * sizeof(struct adci_set_node *);
+    set.data = ADCI_ALLOC(size);
+    memset(set.data, 0, size);
     return set;
 }
 
