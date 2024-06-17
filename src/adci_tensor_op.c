@@ -20,7 +20,6 @@ static void ADCI_EXIT_POINT adci_check_tensor_vec_types(struct adci_vector tenso
 /* TODO, ADD SOME KIND OF MACRO TO DISABLE CHECKS TO SPEED UP INFERENCE */
 static void ADCI_EXIT_POINT adci_check_tensor_dim(struct adci_tensor **inputs){
     assert(inputs[0]->n_dimension == inputs[1]->n_dimension);
-    /* TODO, ADD LOGGING FOR TENSOR ERRORS */
     for(unsigned int i = 0; i < inputs[0]->n_dimension; i++){
         assert(inputs[0]->shape[i] == inputs[1]->shape[i]);
     }
@@ -43,7 +42,7 @@ void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tens
         ADCI_LOG(ADCI_WARNING, "ADDITION OP WITH ONLY 1 TENSOR INPUT, COPYING TO OUTPUT");
         adci_tensor_copy(*(struct adci_tensor **)adci_vector_get(&inputs, 0), output);
         return;
-    } 
+    }
     adci_check_tensor_dim(adci_vector_get(&inputs, 0));
     struct adci_tensor *first = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
     adci_check_tensor_dim((struct adci_tensor *[]){first, output});
@@ -115,7 +114,6 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     default:
         assert("TODO, OPERATION NOT IMPLEMENTED YET" == 0);
     }
-    assert("SHOULD NEVER REACH" == 0);
 }
 
 const char * adci_tensor_op_str(enum adci_tensor_op op){
