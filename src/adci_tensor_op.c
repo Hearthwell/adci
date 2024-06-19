@@ -30,16 +30,22 @@ static void adci_reset_value(void *data, enum adci_tensor_type type){
     switch (type){
     case ADCI_F32: ADCI_RESET(float);
     break;
+    case ADCI_I32: ADCI_RESET(int32_t);
+    break;
+    case ADCI_I8: ADCI_RESET(int8_t);
+    break;
     default:
         ADCI_LOG(ADCI_ERROR, "RESET FOR TYPE %d, NOT IMPLEMENTED", type);
     }
 }
 
-/* END PRIVATE FUNCTIONS */
+/* TEMPLATE FOR 1 TO 1 OP LIKE ADDITION AND SUBSTRACTION */
 
-void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tensor *output){
+#define OP_FOR_TYPE(_first, _output, _type, _op_token) ((_type*)_output->data)[i] = ((_type*)_output->data)[i] _op_token ((_type*)_first->data)[i]
+typedef void (*adci_tensor_single_op)(struct adci_vector inputs, struct adci_tensor *output, unsigned int i);
+static void adci_tensor_element_independent_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op, adci_tensor_single_op callback){
     if(inputs.length <= 1){
-        ADCI_LOG(ADCI_WARNING, "ADDITION OP WITH ONLY 1 TENSOR INPUT, COPYING TO OUTPUT");
+        ADCI_LOG(ADCI_WARNING, "%s OP WITH ONLY 1 TENSOR INPUT, COPYING TO OUTPUT", adci_tensor_op_str(op));
         adci_tensor_copy(*(struct adci_tensor **)adci_vector_get(&inputs, 0), output);
         return;
     }
@@ -49,23 +55,63 @@ void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tens
     unsigned int tensor_volume = 1;
     for(unsigned int i = 0; i < first->n_dimension; i++) tensor_volume *= first->shape[i];
     const unsigned int element_size = adci_tensor_dtype_size(output->dtype);
-    #define ADD_FOR_TYPE(_first, _output, _type) ((_type*)_output->data)[i] += ((_type*)_first->data)[i]
+    assert(output->data != NULL);
+    /* TODO, SPLIT INTO MULTIPLE THREADS */
     for(unsigned int i = 0; i < tensor_volume; i++){
-        assert(output->data != NULL);
         adci_reset_value((uint8_t *)output->data + i * element_size, output->dtype);
-        for(unsigned int j = 0; j < inputs.length; j++){
-            struct adci_tensor *current = *(struct adci_tensor **)adci_vector_get(&inputs, j);
-            assert(current->data != NULL);
-            switch (current->dtype){
-            case ADCI_F32: ADD_FOR_TYPE(current, output, float);
-            break;
-            case ADCI_I8: ADD_FOR_TYPE(current, output, uint8_t);
-            break;
-            default: ADCI_LOG(ADCI_ERROR, "ADD FOR TYPE %d, NOT IMPLEMENTED", current->dtype);
-            break;
-            }
+        callback(inputs, output, i);
+    }
+}   
+
+static void adci_tensor_single_add(struct adci_vector inputs, struct adci_tensor *output, unsigned int i){
+    #define ADD_FOR_TYPE(_first, _output, _type) OP_FOR_TYPE(_first, _output, _type, +)
+    for(unsigned int j = 0; j < inputs.length; j++){
+        struct adci_tensor *current = *(struct adci_tensor **)adci_vector_get(&inputs, j);
+        assert(current->data != NULL);
+        switch (current->dtype){
+        case ADCI_F32: ADD_FOR_TYPE(current, output, float);
+        break;
+        case ADCI_I32: ADD_FOR_TYPE(current, output, int32_t);
+        break;
+        case ADCI_I8: ADD_FOR_TYPE(current, output, int8_t);
+        break;
+        default: ADCI_LOG(ADCI_ERROR, "ADD FOR TYPE %d, NOT IMPLEMENTED", current->dtype);
+        break;
         }
     }
+}
+
+static void adci_tensor_single_sub(struct adci_vector inputs, struct adci_tensor *output, unsigned int i){
+    #define SUB_FOR_TYPE(_first, _output, _type) OP_FOR_TYPE(_first, _output, _type, -)
+    for(unsigned int j = 0; j < inputs.length; j++){
+        struct adci_tensor *current = *(struct adci_tensor **)adci_vector_get(&inputs, j);
+        assert(current->data != NULL);
+        if(j == 0){
+            const unsigned int offset = i * adci_tensor_dtype_size(current->dtype);
+            memcpy((uint8_t *)output->data + offset, (uint8_t *)current->data + offset, adci_tensor_dtype_size(current->dtype));
+            continue;
+        } 
+        switch (current->dtype){
+        case ADCI_F32: SUB_FOR_TYPE(current, output, float);
+        break;
+        case ADCI_I32: SUB_FOR_TYPE(current, output, int32_t);
+        break;
+        case ADCI_I8: SUB_FOR_TYPE(current, output, int8_t);
+        break;
+        default: ADCI_LOG(ADCI_ERROR, "SUB FOR TYPE %d, NOT IMPLEMENTED", current->dtype);
+        break;
+        }
+    }
+}
+
+/* END PRIVATE FUNCTIONS */
+
+void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tensor *output){
+    adci_tensor_element_independent_op(inputs, output, ADCI_TENSOR_ADD, adci_tensor_single_add);
+}
+
+void ADCI_EXIT_POINT adci_tensor_sub(struct adci_vector inputs, struct adci_tensor *output){
+    adci_tensor_element_independent_op(inputs, output, ADCI_TENSOR_SUB, adci_tensor_single_sub);
 }
 
 /* FIRST ELEMENT IS THE TENSOR TO RESHAPE AND SECOND IS THE SHAPE TENSOR (DIM IS ONE)*/
@@ -109,8 +155,11 @@ void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_ten
 
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
     switch (op){
+    case ADCI_TENSOR_INPUT: return;
     case ADCI_TENSOR_ADD: return adci_tensor_add(inputs, output);
+    case ADCI_TENSOR_SUB: return adci_tensor_sub(inputs, output);
     case ADCI_TENSOR_RESHAPE: return adci_tensor_reshape(inputs, output);
+    case ADCI_TENSOR_COPY: return adci_tensor_copy(*(struct adci_tensor**)adci_vector_get(&inputs, 0), output);
     default:
         assert("TODO, OPERATION NOT IMPLEMENTED YET" == 0);
     }
@@ -122,7 +171,7 @@ const char * adci_tensor_op_str(enum adci_tensor_op op){
         OP_STR_CASE(ADCI_TENSOR_COPY);
         OP_STR_CASE(ADCI_TENSOR_ADD);
         OP_STR_CASE(ADCI_TENSOR_SUB);
-        OP_STR_CASE(ADCI_TENDOR_MUL);
+        OP_STR_CASE(ADCI_TENSOR_MUL);
         OP_STR_CASE(ADCI_TENSOR_BATCH_MATMUL);
         OP_STR_CASE(ADCI_TENSOR_PAD);
         OP_STR_CASE(ADCI_TENSOR_CONV2D);

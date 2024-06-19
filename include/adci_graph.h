@@ -29,6 +29,7 @@ struct adci_string * adci_graph_str(const struct adci_graph *gf);
 
 /* TENSORS OWNERSHIP IS TRANSFERED, DONT DELETE TENSORS ANYMORE OR VECTOR */
 struct adci_tensor * adci_graph_op_add (struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output);
+struct adci_tensor * adci_graph_op_sub (struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output);
 struct adci_tensor * adci_graph_op_copy(struct adci_graph *gf, struct adci_tensor *tensor, struct adci_tensor *output);
 
 /* TODO, IMPLEMENT WHEN WE HAVE A WAY TO SAVE ENTIRE GRAPH INFO IN A FILE */

@@ -125,6 +125,11 @@ struct adci_tensor * adci_graph_op_add(struct adci_graph *gf, struct adci_vector
     return output; 
 }
 
+struct adci_tensor * adci_graph_op_sub(struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output){
+    adci_graph_add_node(gf, tensors, output, ADCI_TENSOR_SUB);
+    return output; 
+}
+
 struct adci_tensor * adci_graph_op_copy(struct adci_graph *gf, struct adci_tensor *tensor, struct adci_tensor *output){
     struct adci_vector tensors = adci_vector_init(sizeof(struct adci_tensor *));
     adci_vector_add(&tensors, tensor);
