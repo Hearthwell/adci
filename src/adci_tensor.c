@@ -72,8 +72,8 @@ unsigned int adci_tensor_set(struct adci_tensor *tensor, const void *data){
 }
 
 struct adci_tensor * adci_tensor_get_view(struct adci_tensor *src, unsigned int n_index, unsigned int *index){
-    assert(n_index <= src->n_dimension);
-    assert(src->data != NULL);
+    ADCI_ASSERT(n_index <= src->n_dimension);
+    ADCI_ASSERT(src->data != NULL);
     const unsigned int n_dims = src->n_dimension - n_index;
     struct adci_tensor *view = adci_tensor_init(n_dims, src->shape + n_dims, src->dtype);
     unsigned int offset = 0;
@@ -97,6 +97,6 @@ unsigned int adci_tensor_dtype_size(enum adci_tensor_type dtype){
     case ADCI_I32: return sizeof(int32_t);
     case ADCI_I8:  return sizeof(int8_t); 
     }
-    assert("SHOULD NEVER REACH" == 0);
+    ADCI_ASSERT("SHOULD NEVER REACH" == 0);
     return 0;
 }

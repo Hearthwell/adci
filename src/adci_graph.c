@@ -116,7 +116,7 @@ void adci_graph_free(struct adci_graph *gf){
 
 struct adci_string * adci_graph_str(const struct adci_graph *gf){
     (void)gf;
-    assert("TODO, NOT IMPLEMENTED" == 0);
+    ADCI_ASSERT("TODO, NOT IMPLEMENTED" == 0);
     return NULL;
 }
 
