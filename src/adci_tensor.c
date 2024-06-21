@@ -4,11 +4,39 @@
 
 /* PRIVATE FUNCTIONS */
 
-ADCI_TEST_VISIBILITY unsigned int adci_tensor_element_count_ext(unsigned int n_dims, unsigned int *shape){
+ADCI_TEST_VISIBILITY unsigned int adci_tensor_element_count_ext(unsigned int n_dims, const unsigned int *shape){
     unsigned int size = 1;
     for(unsigned int i = 0; i < n_dims; i++)
         size *= shape[i];
     return size;
+}
+
+static void adci_tensor_print_helper(const struct adci_tensor *input, unsigned int dim, unsigned int offset){
+    /* TAB PREFIX */
+    for(unsigned int i = 0; i < dim; i++) printf("\t");
+    printf("[\n");
+    if(dim == input->n_dimension - 1) 
+        for(unsigned int i = 0; i < dim + 1; i++) printf("\t");
+    const unsigned int volume = adci_tensor_element_count_ext(input->n_dimension - dim - 1, input->shape + dim + 1);
+    for(unsigned int i = 0; i < input->shape[dim]; i++){
+        if(dim == input->n_dimension - 1){
+            switch (input->dtype){
+            case ADCI_F32: printf("%4.2f, ", ((float *)input->data)[offset + i]);
+            break;
+            case ADCI_I32: printf("%d, ", ((int32_t *)input->data)[offset + i]);
+            break;
+            case ADCI_I8: printf("%d, ", ((int8_t *)input->data)[offset + i]);
+            break;
+            default: return;
+            }
+        }
+        else adci_tensor_print_helper(input, dim + 1, offset + i * volume); 
+    }
+
+    if(dim == input->n_dimension - 1) printf("\n");
+    /* TAB PREFIX */
+    for(unsigned int i = 0; i < dim; i++) printf("\t");
+    printf("],\n");
 }
 
 /* END PRIVATE FUNCTIONS */
@@ -99,4 +127,8 @@ unsigned int adci_tensor_dtype_size(enum adci_tensor_type dtype){
     }
     ADCI_ASSERT("SHOULD NEVER REACH" == 0);
     return 0;
+}
+
+void adci_tensor_print(const struct adci_tensor *tensor){
+    adci_tensor_print_helper(tensor, 0, 0);
 }
