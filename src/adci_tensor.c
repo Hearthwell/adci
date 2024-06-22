@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include "adci_common.h"
 #include "adci_tensor.h"
 #include "adci_logging.h"
@@ -37,6 +38,18 @@ static void adci_tensor_print_helper(const struct adci_tensor *input, unsigned i
     /* TAB PREFIX */
     for(unsigned int i = 0; i < dim; i++) printf("\t");
     printf("],\n");
+}
+
+static void adci_tensor_set_element_helper(struct adci_tensor *tensor, const void *element, va_list ptr){
+    unsigned int offset = 0; 
+    for(unsigned int i = 0; i < tensor->n_dimension; i++){
+        const unsigned int index = va_arg(ptr, unsigned int);
+        const unsigned int volume = adci_tensor_element_count_ext(tensor->n_dimension - i - 1, tensor->shape + i + 1);   
+        offset += index * volume;
+    }
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    memcpy(tensor->data + offset * element_size, element, element_size);
+    va_end(ptr);
 }
 
 /* END PRIVATE FUNCTIONS */
@@ -97,6 +110,26 @@ unsigned int adci_tensor_set(struct adci_tensor *tensor, const void *data){
     const unsigned int size = adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype);
     memcpy(tensor->data, data, size);
     return size;
+}
+
+void adci_tensor_set_f32(struct adci_tensor *tensor, float element, ...){
+    ADCI_ASSERT(tensor->dtype == ADCI_F32);
+    va_list ptr;
+    va_start(ptr, element);
+    adci_tensor_set_element_helper(tensor, &element, ptr);
+}
+
+void adci_tensor_set_i32(struct adci_tensor *tensor, int32_t element, ...){
+    ADCI_ASSERT(tensor->dtype == ADCI_I32);
+    va_list ptr;
+    va_start(ptr, element);
+    adci_tensor_set_element_helper(tensor, &element, ptr);
+}
+
+void adci_tensor_set_element(struct adci_tensor *tensor, const void *element, ...){
+    va_list ptr;
+    va_start(ptr, element);
+    adci_tensor_set_element_helper(tensor, element, ptr);
 }
 
 struct adci_tensor * adci_tensor_get_view(struct adci_tensor *src, unsigned int n_index, unsigned int *index){

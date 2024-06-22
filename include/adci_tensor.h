@@ -35,6 +35,9 @@ void adci_tensor_free(struct adci_tensor *tensor);
 
 /* RETURNS THE SIZE WRITTEN TO THE TENSOR */
 unsigned int adci_tensor_set(struct adci_tensor *tensor, const void *data);
+void adci_tensor_set_f32(struct adci_tensor *tensor, float element, ...);
+void adci_tensor_set_i32(struct adci_tensor *tensor, int32_t element, ...);
+void adci_tensor_set_element(struct adci_tensor *tensor, const void *element, ...);
 
 /* RETURNS A VIEW ON THE SRC TENSOR, LETS DO STUFF LIKE, src[0][1] by giving n_index = 2 and index = {0, 1} */
 struct adci_tensor * adci_tensor_get_view(struct adci_tensor *src, unsigned int n_index, unsigned int *index);
