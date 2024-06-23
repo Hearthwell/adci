@@ -49,3 +49,33 @@ TEST(TEST_SUITE_NAME, adci_tensor_set_element_generic){
     EXPECT_FLOAT_EQ(((float*)tensor->data)[3 * 6 + 1], value);
     adci_tensor_free(tensor);
 }
+
+TEST(TEST_SUITE_NAME, adci_tensor_get_element_generic){
+    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_F32);
+    adci_tensor_alloc(tensor);
+    for(unsigned int i = 0; i < 5 * 6; i++)
+        ((float*)tensor->data)[i] = (float)i;
+    void *element = adci_tensor_get_element(tensor, 0, 5);
+    EXPECT_FLOAT_EQ(((float*)element)[0], 5.f);
+    adci_tensor_free(tensor);
+}
+
+TEST(TEST_SUITE_NAME, adci_tensor_get_f32){
+    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_F32);
+    adci_tensor_alloc(tensor);
+    for(unsigned int i = 0; i < 5 * 6; i++)
+        ((float*)tensor->data)[i] = (float)i;
+    float element = adci_tensor_get_f32(tensor, 1, 5);
+    EXPECT_FLOAT_EQ(element, 11.f);
+    adci_tensor_free(tensor);
+}
+
+TEST(TEST_SUITE_NAME, adci_tensor_get_i32){
+    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_I32);
+    adci_tensor_alloc(tensor);
+    for(unsigned int i = 0; i < 5 * 6; i++)
+        ((int32_t *)tensor->data)[i] = i;
+    int32_t element = adci_tensor_get_i32(tensor, 1, 5);
+    EXPECT_EQ(element, 11);
+    adci_tensor_free(tensor);
+}
