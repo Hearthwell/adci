@@ -5,7 +5,7 @@
 
 #include "adci_common.h"
 
-/* TODO, FOR NOW, ONLY SUPPORTED TYPE IS F32, ADD SUPPORT FOR OTHER TYPES (AT LEAST INT8) */
+/* DONT CHANGE ORDER, INPORTANT FOR TENSOR_OP */
 enum adci_tensor_type{
     ADCI_F32,
     ADCI_I32,
@@ -14,6 +14,7 @@ enum adci_tensor_type{
     ADCI_F16,
     ADCI_I4
     */
+   ADCI_NUM_SUPPORTED_TYPES
 };
 
 /* DIMESION ALWAYS STARTS AT INDEX 0, SO IN CASE OF TWO DIMS, WE GET [N, M, 0, 0] */
