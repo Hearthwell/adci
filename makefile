@@ -6,8 +6,9 @@ SRC_FILES:=$(wildcard $(SRC_DIR)/*.c)
 SRC_OBJ:=$(SRC_FILES:$(SRC_DIR)/%.c=$(OUT_DIR)/%.c.o)
 
 CC:=gcc
-# TODO, REMOVE DEBUG INFO / ADD RELEASE PRESET, BUILD 
-C_FLAGS:=-Wall -Wextra -Iinclude -g
+# TODO, REMOVE DEBUG INFO / ADD RELEASE PRESET, BUILD
+C_DEBUG_FLAGS:=-DADCI_BUILD_DEBUG -g
+C_FLAGS:=-Wall -Wextra -Iinclude $(C_DEBUG_FLAGS)
 C_LIBS:=
 
 $(OUT_DIR)/%.c.o:$(SRC_DIR)/%.c

@@ -19,12 +19,15 @@
 #define ADCI_TEST_VISIBILITY
 #else
 #define ADCI_TEST_VISIBILITY static
-#endif
+#endif //ADCI_TEST
 
 #define ADCI_ALLOC(_size) malloc(_size)
 #define ADCI_REALLOC(_ptr, _size) realloc(_ptr, _size)
 #define ADCI_FREE(_ptr) free(_ptr)
+
+#ifdef ADCI_BUILD_DEBUG
 #define ADCI_ASSERT(_condition) assert(_condition)
+#endif //ADCI_BUILD_DEBUG
 
 #define ADCI_TOKEN2STR(_token) #_token
 
