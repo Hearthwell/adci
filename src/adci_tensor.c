@@ -183,9 +183,9 @@ unsigned int adci_tensor_dtype_size(enum adci_tensor_type dtype){
     switch (dtype){
     case ADCI_F32: return sizeof(float);
     case ADCI_I32: return sizeof(int32_t);
-    case ADCI_I8:  return sizeof(int8_t); 
+    case ADCI_I8:  return sizeof(int8_t);
+    default: ADCI_ASSERT("SHOULD NEVER REACH" == 0);
     }
-    ADCI_ASSERT("SHOULD NEVER REACH" == 0);
     return 0;
 }
 
