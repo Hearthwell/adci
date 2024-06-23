@@ -27,6 +27,8 @@
 
 #ifdef ADCI_BUILD_DEBUG
 #define ADCI_ASSERT(_condition) assert(_condition)
+#else 
+#define ADCI_ASSERT(_condition)
 #endif //ADCI_BUILD_DEBUG
 
 #define ADCI_TOKEN2STR(_token) #_token
