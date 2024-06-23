@@ -2,6 +2,8 @@
 #include "adci_tensor_op.h"
 #include "adci_logging.h"
 
+#include "adci_tensor_common.h"
+
 /* PRIVATE FUNCTIONS */
 
 static void ADCI_EXIT_POINT adci_check_tensor_types(struct adci_tensor **tensors){
@@ -142,12 +144,47 @@ void ADCI_EXIT_POINT adci_tensor_reshape(struct adci_vector inputs, struct adci_
     memcpy(output->data, tensor->data, required_buffer_size);
 }
 
+static void adci_tensor_pad_fill_data(const struct adci_tensor *input, const struct adci_tensor *padding, struct adci_tensor *output, unsigned int dim, unsigned int in_offset, unsigned int ou_offset){
+    const unsigned int bsize = adci_tensor_dtype_size(input->dtype);
+    unsigned int ou_volume = adci_tensor_element_count_ext(output->n_dimension - dim - 1, output->shape + dim + 1); 
+    unsigned int in_volume = adci_tensor_element_count_ext(input->n_dimension - dim - 1, input->shape + dim + 1);
+    for(unsigned int i = 0; i < input->shape[dim]; i++){
+        const unsigned int curr_ou_offset = (i + ((int32_t *)padding->data)[dim * padding->shape[1]]) * ou_volume;
+        const unsigned int curr_in_offset = i * in_volume;
+        if(dim == input->n_dimension - 1){
+            const unsigned int fou_offset = (ou_offset + curr_ou_offset) * bsize;
+            const unsigned int fin_offset = (in_offset + curr_in_offset) * bsize;
+            memcpy((int8_t *)output->data + fou_offset, (int8_t *)input->data + fin_offset, bsize);
+        }else adci_tensor_pad_fill_data(input, padding, output, dim + 1, in_offset + curr_in_offset, ou_offset + curr_ou_offset);
+    }
+}
+
 void ADCI_EXIT_POINT adci_tensor_pad(struct adci_vector inputs, struct adci_tensor *output){
     ADCI_ASSERT(inputs.length == 2);
-    struct  adci_tensor *element = adci_vector_get(&inputs, 0);
-    struct  adci_tensor *padding = adci_vector_get(&inputs, 1);
+    struct adci_tensor *element = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    struct adci_tensor *padding = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    ADCI_ASSERT(padding->dtype == ADCI_I32);
     ADCI_ASSERT(padding->n_dimension == 2);
-    ADCI_ASSERT(element->n_dimension == padding);
+    ADCI_ASSERT(element->n_dimension == padding->shape[0]);
+    const unsigned int previous_count = adci_tensor_element_count(element);
+    unsigned int volume = 1;
+    for(unsigned int i = 0; i < padding->shape[0]; i++){
+        const unsigned int pad_size = ((int32_t *)padding->data)[i * padding->shape[1]] + ((int32_t *)padding->data)[i * padding->shape[1] + 1];
+        output->shape[i] = element->shape[i] + pad_size;
+        volume *= element->shape[i] + pad_size;
+    }
+    if(volume == previous_count){
+        if(element != output) adci_tensor_copy(element, output);
+        return;
+    }
+    /* INCREASE SIZE OF TENSOR */
+    const unsigned int padded_tensor_size = volume * adci_tensor_dtype_size(element->dtype);
+    if(output->data) ADCI_FREE(output->data);
+    output->data = ADCI_ALLOC(padded_tensor_size);
+    output->dtype = element->dtype;
+    output->n_dimension = element->n_dimension;
+    memset(output->data, 0, padded_tensor_size);
+    adci_tensor_pad_fill_data(element, padding, output, 0, 0, 0);
 }
 
 void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output){
@@ -169,6 +206,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_SUB: return adci_tensor_sub(inputs, output);
     case ADCI_TENSOR_RESHAPE: return adci_tensor_reshape(inputs, output);
     case ADCI_TENSOR_COPY: return adci_tensor_copy(*(struct adci_tensor**)adci_vector_get(&inputs, 0), output);
+    case ADCI_TENSOR_PAD: return adci_tensor_pad(inputs, output);
     default:
         ADCI_ASSERT("TODO, OPERATION NOT IMPLEMENTED YET" == 0);
     }
