@@ -3,14 +3,9 @@
 #include "adci_tensor.h"
 #include "adci_logging.h"
 
-/* PRIVATE FUNCTIONS */
+#include "adci_tensor_common.h"
 
-ADCI_TEST_VISIBILITY unsigned int adci_tensor_element_count_ext(unsigned int n_dims, const unsigned int *shape){
-    unsigned int size = 1;
-    for(unsigned int i = 0; i < n_dims; i++)
-        size *= shape[i];
-    return size;
-}
+/* PRIVATE FUNCTIONS */
 
 static void adci_tensor_print_helper(const struct adci_tensor *input, unsigned int dim, unsigned int offset){
     /* TAB PREFIX */
