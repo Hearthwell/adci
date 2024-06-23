@@ -228,6 +228,35 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_pad_diff_output_multiple_dim){
     adci_tensor_free(output);
 }
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_prelu){
+    unsigned int shape[] = {4, 3};
+    adci_tensor *first = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor *params = adci_tensor_init_1d(shape[1], ADCI_F32);
+    adci_tensor_alloc(first);
+    adci_tensor_alloc(params);
+    adci_tensor_alloc(output);
+    for(unsigned int i = 0; i < shape[1]; i++) adci_tensor_set_f32(params, static_cast<float>(rand()) / RAND_MAX, i);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++){
+        float mult = i % 2 == 0 ? -1.f : 1.f;
+        ((float *)first->data)[i] = mult * i;
+    }
+    struct adci_vector inputs = adci_vector_init(sizeof(adci_tensor *));
+    adci_vector_add(&inputs, &first);
+    adci_vector_add(&inputs, &params);
+    adci_tensor_prelu(inputs, output);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++){
+        float value = (i % 2 == 0 ? -1.f : 1.f) * i;
+        if(value > 0) EXPECT_FLOAT_EQ(((float *)output->data)[i], static_cast<float>(i));
+        else EXPECT_FLOAT_EQ(((float *)output->data)[i], ((float *)first->data)[i] * adci_tensor_get_f32(params, i % params->shape[0]));
+    }
+    adci_vector_free(&inputs);
+    adci_tensor_free(first);
+    adci_tensor_free(params);
+    adci_tensor_free(output);
+}   
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_compute_op){
     /* TODO, IMPLEMENT */
 }
+

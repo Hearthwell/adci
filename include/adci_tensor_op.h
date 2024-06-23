@@ -9,12 +9,12 @@ enum adci_tensor_op{
     ADCI_TENSOR_ADD,
     ADCI_TENSOR_SUB,
     ADCI_TENSOR_RESHAPE,
+    ADCI_TENSOR_PRELU,
 
     ADCI_TENSOR_MUL,
     ADCI_TENSOR_BATCH_MATMUL,
     ADCI_TENSOR_PAD,
     ADCI_TENSOR_CONV2D,
-    ADCI_TENSOR_PRELU,
     ADCI_TENSOR_CONCAT,
     ADCI_TENSOR_AVG_POOL2D,
     ADCI_TENSOR_TRANSPOSE,
@@ -28,6 +28,7 @@ void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tens
 void ADCI_EXIT_POINT adci_tensor_sub(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_reshape(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_pad(struct adci_vector inputs, struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_prelu(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output);
 
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op);

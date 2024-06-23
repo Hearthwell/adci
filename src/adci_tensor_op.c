@@ -107,6 +107,41 @@ static void adci_tensor_single_sub(struct adci_vector inputs, struct adci_tensor
     }
 }
 
+typedef void (*single_op_template_fn_t)(const void *first, const void *second, void *output);
+#define IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(_TEMPLATE_FN) \
+    _TEMPLATE_FN(float, float) \
+    _TEMPLATE_FN(float, int32_t) \
+    _TEMPLATE_FN(float, int8_t) \
+    _TEMPLATE_FN(int32_t, float) \
+    _TEMPLATE_FN(int32_t, int32_t) \
+    _TEMPLATE_FN(int32_t, int8_t) \
+    _TEMPLATE_FN(int8_t, float) \
+    _TEMPLATE_FN(int8_t, int32_t) \
+    _TEMPLATE_FN(int8_t, int8_t)
+
+#define INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(_list_name, _GET_TEMPLATE_FN) \
+static single_op_template_fn_t _list_name[ADCI_NUM_SUPPORTED_TYPES * ADCI_NUM_SUPPORTED_TYPES] = { \
+    _GET_TEMPLATE_FN(float, float), \
+    _GET_TEMPLATE_FN(float, int32_t), \
+    _GET_TEMPLATE_FN(float, int8_t), \
+    _GET_TEMPLATE_FN(int32_t, float), \
+    _GET_TEMPLATE_FN(int32_t, int32_t), \
+    _GET_TEMPLATE_FN(int32_t, int8_t), \
+    _GET_TEMPLATE_FN(int8_t, float), \
+    _GET_TEMPLATE_FN(int8_t, int32_t), \
+    _GET_TEMPLATE_FN(int8_t, int8_t) \
+};
+
+#define SINGLE_PRELU_FN_NAME(_ftype, _stype) single_prelu_op_template_fn_ ## _ftype ## _ ## _stype
+#define SINGLE_PRELU_OP_TEMPLATE_FN(_ftype, _stype)  \
+static void SINGLE_PRELU_FN_NAME(_ftype, _stype)(const void *first, const void *second, void *output){ \
+    ((_ftype *)output)[0] = ((_ftype *)first)[0]; \
+    if(((_ftype *)first)[0] > 0) return; \
+    ((_ftype *)output)[0] = (_ftype) (((_ftype *)first)[0] * ((_stype *)second)[0]);    \
+}
+IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_PRELU_OP_TEMPLATE_FN)
+INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_prelu_op_template_fns, SINGLE_PRELU_FN_NAME)
+
 /* END PRIVATE FUNCTIONS */
 
 void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tensor *output){
@@ -199,6 +234,32 @@ void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_ten
     memcpy(output->data, input->data, adci_tensor_dtype_size(input->dtype) * volume);
 }
 
+void ADCI_EXIT_POINT adci_tensor_prelu(struct adci_vector inputs, struct adci_tensor *output){
+    /* f(y) = y if y >= 0 and f(y) = a * y if y < 0 */
+    /* EACH CHANNEL HAS A DIFFERENT PARAMETER a */
+    struct adci_tensor *element = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    struct adci_tensor *parameters = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    ADCI_ASSERT(element->dtype == output->dtype);
+    adci_check_tensor_dim((struct adci_tensor *[]){element, output});
+    ADCI_ASSERT(parameters->n_dimension <= element->n_dimension);
+    for(unsigned int i = 0; i < parameters->n_dimension; i++){
+        ADCI_ASSERT(
+            element->shape[element->n_dimension - i - 1] == 1        || 
+            parameters->shape[parameters->n_dimension - i - 1] == 1  || 
+            element->shape[element->n_dimension - i - 1] == parameters->shape[parameters->n_dimension - i - 1]);
+    }
+    const unsigned int volume = adci_tensor_element_count(element);
+    const unsigned int param_volume = adci_tensor_element_count(parameters);
+    single_op_template_fn_t prelu = single_prelu_op_template_fns[element->dtype * ADCI_NUM_SUPPORTED_TYPES + parameters->dtype];
+    const unsigned int input_elem_size = adci_tensor_dtype_size(element->dtype);
+    const unsigned int param_elem_size = adci_tensor_dtype_size(parameters->dtype);
+    for(unsigned int i = 0; i < volume; i++){
+        const unsigned int offset = i * input_elem_size;
+        const unsigned int param_offset = (i % param_volume) * param_elem_size; 
+        prelu(element->data + offset, parameters->data + param_offset, output->data + offset);
+    }
+}
+
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
     switch (op){
     case ADCI_TENSOR_INPUT: return;
@@ -208,7 +269,8 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_COPY: return adci_tensor_copy(*(struct adci_tensor**)adci_vector_get(&inputs, 0), output);
     case ADCI_TENSOR_PAD: return adci_tensor_pad(inputs, output);
     default:
-        ADCI_ASSERT("TODO, OPERATION NOT IMPLEMENTED YET" == 0);
+        ADCI_LOG(ADCI_ERROR, "OPERATION: %s NOT IMPLEMENTED YET", adci_tensor_op_str(op));
+        ADCI_ASSERT(false);
     }
 }
 
