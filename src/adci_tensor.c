@@ -42,6 +42,7 @@ static void adci_tensor_set_element_helper(struct adci_tensor *tensor, const voi
         const unsigned int volume = adci_tensor_element_count_ext(tensor->n_dimension - i - 1, tensor->shape + i + 1);   
         offset += index * volume;
     }
+    ADCI_ASSERT(tensor->data != NULL);
     const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
     memcpy(tensor->data + offset * element_size, element, element_size);
     va_end(ptr);
