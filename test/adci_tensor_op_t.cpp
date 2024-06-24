@@ -342,6 +342,108 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_softmax_dim0){
     adci_tensor_free(output);
 }
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_reduce_max_dim0){
+    unsigned int shape[] = {2, 3};
+    adci_tensor *first = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor_alloc(first);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
+        ((float *)first->data)[i] = static_cast<float>(i);
+    adci_tensor *dim = adci_tensor_init_1d(1, ADCI_I32);
+    adci_tensor_alloc(dim);
+    ((int32_t *)dim->data)[0] = 0;
+    adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_vector inputs = adci_vector_init(sizeof(adci_tensor*));
+    adci_vector_add(&inputs, &first);
+    adci_vector_add(&inputs, &dim);
+    adci_tensor_reduce_max(inputs, output);
+    EXPECT_EQ(output->n_dimension, 1);    
+    EXPECT_EQ(output->shape[0], shape[1]);    
+    for(unsigned int i = 0; i < shape[1]; i++)
+        EXPECT_FLOAT_EQ(((float *)output->data)[i], static_cast<float>(shape[1] + i));
+    adci_vector_free(&inputs);
+    adci_tensor_free(first);
+    adci_tensor_free(dim);
+    adci_tensor_free(output);
+}
+
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_reduce_max_dim1){
+    unsigned int shape[] = {2, 3};
+    adci_tensor *first = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor_alloc(first);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
+        ((float *)first->data)[i] = static_cast<float>(i);
+    adci_tensor *dim = adci_tensor_init_1d(1, ADCI_I32);
+    adci_tensor_alloc(dim);
+    ((int32_t *)dim->data)[0] = 1;
+    adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_vector inputs = adci_vector_init(sizeof(adci_tensor*));
+    adci_vector_add(&inputs, &first);
+    adci_vector_add(&inputs, &dim);
+    adci_tensor_reduce_max(inputs, output);
+    EXPECT_EQ(output->n_dimension, 1);    
+    EXPECT_EQ(output->shape[0], shape[0]);    
+    EXPECT_FLOAT_EQ(((float *)output->data)[0], static_cast<float>(2));
+    EXPECT_FLOAT_EQ(((float *)output->data)[1], static_cast<float>(5));
+    adci_vector_free(&inputs);
+    adci_tensor_free(first);
+    adci_tensor_free(dim);
+    adci_tensor_free(output);
+}
+
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_reduce_max_all){
+    unsigned int shape[] = {2, 3};
+    adci_tensor *first = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor_alloc(first);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
+        ((float *)first->data)[i] = static_cast<float>(i);
+    adci_tensor *dim = adci_tensor_init_1d(2, ADCI_I32);
+    adci_tensor_alloc(dim);
+    ((int32_t *)dim->data)[0] = 0;
+    ((int32_t *)dim->data)[1] = 1;
+    adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_vector inputs = adci_vector_init(sizeof(adci_tensor*));
+    adci_vector_add(&inputs, &first);
+    adci_vector_add(&inputs, &dim);
+    adci_tensor_reduce_max(inputs, output);
+    EXPECT_EQ(output->n_dimension, 1);    
+    EXPECT_EQ(output->shape[0], 1);    
+    EXPECT_FLOAT_EQ(((float *)output->data)[0], static_cast<float>(5));
+    adci_vector_free(&inputs);
+    adci_tensor_free(first);
+    adci_tensor_free(dim);
+    adci_tensor_free(output);
+}
+
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_reduce_max_all_keep_dim){
+    unsigned int shape[] = {2, 3};
+    adci_tensor *first = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor_alloc(first);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
+        ((float *)first->data)[i] = static_cast<float>(i);
+    adci_tensor *dim = adci_tensor_init_1d(2, ADCI_I32);
+    adci_tensor_alloc(dim);
+    ((int32_t *)dim->data)[0] = 0;
+    ((int32_t *)dim->data)[1] = 1;
+    adci_tensor *keep_dim = adci_tensor_init_1d(1, ADCI_I32);
+    adci_tensor_alloc(keep_dim);
+    adci_tensor_set_i32(keep_dim, 1, 0);
+    adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_vector inputs = adci_vector_init(sizeof(adci_tensor*));
+    adci_vector_add(&inputs, &first);
+    adci_vector_add(&inputs, &dim);
+    adci_vector_add(&inputs, &keep_dim);
+    adci_tensor_reduce_max(inputs, output);
+    EXPECT_EQ(output->n_dimension, first->n_dimension);    
+    EXPECT_EQ(output->shape[0], 1);    
+    EXPECT_EQ(output->shape[1], 1);    
+    EXPECT_FLOAT_EQ(((float *)output->data)[0], static_cast<float>(5));
+    adci_vector_free(&inputs);
+    adci_tensor_free(keep_dim);
+    adci_tensor_free(dim);
+    adci_tensor_free(first);
+    adci_tensor_free(output);
+}
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_compute_op){
     /* TODO, IMPLEMENT */
 }

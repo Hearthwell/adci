@@ -22,7 +22,6 @@ static void ADCI_EXIT_POINT adci_check_tensor_vec_types(struct adci_vector tenso
     /* TODO, CONTINUE */
 }
 
-/* TODO, ADD SOME KIND OF MACRO TO DISABLE CHECKS TO SPEED UP INFERENCE */
 static void ADCI_EXIT_POINT adci_check_tensor_dim(const struct adci_tensor **inputs){
     ADCI_ASSERT(inputs[0]->n_dimension == inputs[1]->n_dimension);
     for(unsigned int i = 0; i < inputs[0]->n_dimension; i++){
@@ -33,12 +32,20 @@ static void ADCI_EXIT_POINT adci_check_tensor_dim(const struct adci_tensor **inp
 static void adci_reset_value(void *data, enum adci_tensor_type type){
     #define ADCI_RESET(_type) *((_type*)data) = (_type)0
     switch (type){
-    case ADCI_F32: ADCI_RESET(float);
-    break;
-    case ADCI_I32: ADCI_RESET(int32_t);
-    break;
-    case ADCI_I8: ADCI_RESET(int8_t);
-    break;
+    case ADCI_F32: ADCI_RESET(float); break;
+    case ADCI_I32: ADCI_RESET(int32_t); break;
+    case ADCI_I8: ADCI_RESET(int8_t); break;
+    default:
+        ADCI_LOG(ADCI_ERROR, "RESET FOR TYPE %d, NOT IMPLEMENTED", type);
+    }
+}
+
+static void adci_compare_max(const void *data, void *maximum, enum adci_tensor_type type){
+    #define ADCI_CMP_MAX(_type) *((_type*)maximum) = (*((_type*)maximum) < *((_type*)data)) ? *((_type*)data) : *((_type*)maximum)
+    switch (type){
+    case ADCI_F32: ADCI_CMP_MAX(float); break;
+    case ADCI_I32: ADCI_CMP_MAX(int32_t); break;
+    case ADCI_I8: ADCI_CMP_MAX(int8_t); break;
     default:
         ADCI_LOG(ADCI_ERROR, "RESET FOR TYPE %d, NOT IMPLEMENTED", type);
     }
@@ -106,6 +113,15 @@ static void adci_tensor_single_sub(struct adci_vector inputs, struct adci_tensor
         default: ADCI_LOG(ADCI_ERROR, "SUB FOR TYPE %d, NOT IMPLEMENTED", current->dtype);
         break;
         }
+    }
+}
+
+static void adci_reduce_max_next(const struct adci_tensor *tensor, unsigned int *indeces, const struct adci_vector dim_mapping){
+    for(unsigned int i = 0; i < dim_mapping.length; i++){
+        const unsigned int index = dim_mapping.length - 1 - i;
+        indeces[index] += 1;
+        if(indeces[index] < tensor->shape[((unsigned int *)dim_mapping.data)[index]]) break;
+        indeces[index] = 0;
     }
 }
 
@@ -314,6 +330,83 @@ void ADCI_EXIT_POINT adci_tensor_softmax(struct adci_vector inputs, struct adci_
     }
 }
 
+void ADCI_EXIT_POINT adci_tensor_reduce_max(struct adci_vector inputs, struct adci_tensor *output){
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    struct adci_tensor *axis = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    ADCI_ASSERT(axis->n_dimension == 1);
+    ADCI_ASSERT(axis->dtype == ADCI_I32);
+    ADCI_ASSERT(adci_tensor_element_count(axis) <= tensor->n_dimension);
+    bool keep_dims = false;
+    if(inputs.length >= 3){
+        struct adci_tensor *format = *(struct adci_tensor **)adci_vector_get(&inputs, 2);
+        ADCI_ASSERT(format->dtype == ADCI_I32);
+        ADCI_ASSERT(format->n_dimension == 1);
+        keep_dims = adci_tensor_get_i32(format, 0) != 0;
+    }
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    memcpy(output->shape, tensor->shape, sizeof(tensor->shape));
+    output->n_dimension = tensor->n_dimension;
+    unsigned int reduce_volume = 1;
+    struct adci_vector free_dim_mapping = adci_vector_init(sizeof(unsigned int));
+    struct adci_vector reduced_dim_mapping = adci_vector_init(sizeof(unsigned int));
+    struct adci_vector axis_view = {.data = axis->data, .bsize = adci_tensor_dtype_size(axis->dtype), .length = axis->shape[0]};
+    for(unsigned int i = 0; i < tensor->n_dimension; i++){
+        if(!adci_vector_has(&axis_view, &i)){
+            adci_vector_add(&free_dim_mapping, &i);
+            continue;
+        }
+        /* PART OF THE REDUCED DIMS */
+        adci_vector_add(&reduced_dim_mapping, &i);
+        reduce_volume *= tensor->shape[i];
+    }
+    /* GIVE FINAL SIZE TO OUTPUT TENSOR */
+    output->n_dimension = free_dim_mapping.length;
+    for(unsigned int i = 0; i < output->n_dimension; i++) 
+        output->shape[i] = tensor->shape[((unsigned int *)free_dim_mapping.data)[i]];
+    /* TODO, ADD CHECK TO SEE IF OUTPUT TENSOR ALREADY HAVE RIGHT TENSOR DIMS AND DOES NOT NEED TO BE REALLOCATED */
+    if(output->n_dimension == 0){
+        output->n_dimension = 1;
+        output->shape[0] = 1;
+    }
+    if(output->data) ADCI_FREE(output->data);
+    adci_tensor_alloc(output);
+    const unsigned int out_volume = adci_tensor_element_count(output);
+    unsigned int dim_volumes[tensor->n_dimension];
+    for(unsigned int i = 0; i < tensor->n_dimension; i++)
+        dim_volumes[i] = adci_tensor_element_count_ext(tensor->n_dimension - i - 1, tensor->shape + i + 1);
+    int8_t maximum[element_size];
+    unsigned int free_dim_index[tensor->n_dimension - axis->shape[0]];
+    unsigned int reduced_dim_index[axis->shape[0]];
+    memset(free_dim_index, 0, sizeof(free_dim_index));
+    for(unsigned int i = 0; i < out_volume; i++){
+        unsigned int fixed_offset = 0;
+        for(unsigned int j = 0; j < free_dim_mapping.length; j++)
+            fixed_offset += free_dim_index[j] * dim_volumes[((unsigned int *)free_dim_mapping.data)[j]];
+        adci_reset_value(maximum, tensor->dtype);
+        memset(reduced_dim_index, 0, sizeof(reduced_dim_index));
+        for(unsigned int j = 0; j < reduce_volume; j++){
+            /* CHECK FOR MAXIMUM VALUE AMONGST THE REDUCED DIMENSIONS */
+            unsigned int reduced_offset = 0;
+            for(unsigned int k = 0; k < reduced_dim_mapping.length; k++)
+                reduced_offset += reduced_dim_index[k] * dim_volumes[((unsigned int *)reduced_dim_mapping.data)[k]];
+            int8_t *current = (int8_t *)tensor->data + (fixed_offset + reduced_offset) * element_size;
+            adci_compare_max(current, maximum, tensor->dtype);
+            adci_reduce_max_next(tensor, reduced_dim_index, reduced_dim_mapping);
+        }
+        memcpy((int8_t *)output->data + i * element_size, maximum, element_size);
+        adci_reduce_max_next(tensor, free_dim_index, free_dim_mapping);
+    }
+    if(keep_dims){
+        output->n_dimension = tensor->n_dimension;
+        for(unsigned int i = 0; i < tensor->n_dimension; i++){
+            output->shape[i] = tensor->shape[i];
+            if(adci_vector_has(&axis_view, &i)) output->shape[i] = 1; 
+        }
+    }
+    adci_vector_free(&reduced_dim_mapping);
+    adci_vector_free(&free_dim_mapping);
+}
+
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
     switch (op){
     case ADCI_TENSOR_INPUT: return;
@@ -323,6 +416,9 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_COPY: return adci_tensor_copy(*(struct adci_tensor**)adci_vector_get(&inputs, 0), output);
     case ADCI_TENSOR_PAD: return adci_tensor_pad(inputs, output);
     case ADCI_TENSOR_PRELU: return adci_tensor_prelu(inputs, output);
+    case ADCI_TENSOR_CAST: return adci_tensor_cast(inputs, output);
+    case ADCI_TENSOR_SOFTMAX: return adci_tensor_softmax(inputs, output);
+    case ADCI_TENSOR_REDUCE_MAX: return adci_tensor_reduce_max(inputs, output);
     default:
         ADCI_LOG(ADCI_ERROR, "OPERATION: %s NOT IMPLEMENTED YET", adci_tensor_op_str(op));
         ADCI_ASSERT(false);
