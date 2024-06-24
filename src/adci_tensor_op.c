@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include "adci_common.h"
 #include "adci_tensor_op.h"
 #include "adci_logging.h"
@@ -6,7 +8,7 @@
 
 /* PRIVATE FUNCTIONS */
 
-static void ADCI_EXIT_POINT adci_check_tensor_types(struct adci_tensor **tensors){
+static void ADCI_EXIT_POINT adci_check_tensor_types(const struct adci_tensor **tensors){
     ADCI_ASSERT(tensors[0]->dtype == tensors[1]->dtype);
 }
 
@@ -21,7 +23,7 @@ static void ADCI_EXIT_POINT adci_check_tensor_vec_types(struct adci_vector tenso
 }
 
 /* TODO, ADD SOME KIND OF MACRO TO DISABLE CHECKS TO SPEED UP INFERENCE */
-static void ADCI_EXIT_POINT adci_check_tensor_dim(struct adci_tensor **inputs){
+static void ADCI_EXIT_POINT adci_check_tensor_dim(const struct adci_tensor **inputs){
     ADCI_ASSERT(inputs[0]->n_dimension == inputs[1]->n_dimension);
     for(unsigned int i = 0; i < inputs[0]->n_dimension; i++){
         ADCI_ASSERT(inputs[0]->shape[i] == inputs[1]->shape[i]);
@@ -54,7 +56,7 @@ static void ADCI_EXIT_POINT adci_tensor_element_independent_op(struct adci_vecto
     }
     adci_check_tensor_dim(adci_vector_get(&inputs, 0));
     struct adci_tensor *first = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
-    adci_check_tensor_dim((struct adci_tensor *[]){first, output});
+    adci_check_tensor_dim((const struct adci_tensor *[]){first, output});
     unsigned int tensor_volume = 1;
     for(unsigned int i = 0; i < first->n_dimension; i++) tensor_volume *= first->shape[i];
     const unsigned int element_size = adci_tensor_dtype_size(output->dtype);
@@ -132,6 +134,7 @@ static single_op_template_fn_t _list_name[ADCI_NUM_SUPPORTED_TYPES * ADCI_NUM_SU
     _GET_TEMPLATE_FN(int8_t, int8_t) \
 };
 
+/* PRELU FUNCTIONS IMPLEMENTATION */
 #define SINGLE_PRELU_FN_NAME(_ftype, _stype) single_prelu_op_template_fn_ ## _ftype ## _ ## _stype
 #define SINGLE_PRELU_OP_TEMPLATE_FN(_ftype, _stype)  \
 static void SINGLE_PRELU_FN_NAME(_ftype, _stype)(const void *first, const void *second, void *output){ \
@@ -141,6 +144,16 @@ static void SINGLE_PRELU_FN_NAME(_ftype, _stype)(const void *first, const void *
 }
 IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_PRELU_OP_TEMPLATE_FN)
 INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_prelu_op_template_fns, SINGLE_PRELU_FN_NAME)
+
+/* CAST FUNCTIONS IMPLEMENTATION _ftype: initial type, _stype: type to be casted to */
+#define SINGLE_CAST_FN_NAME(_ftype, _stype) single_cast_op_template_fn_ ## _ftype ## _ ## _stype
+#define SINGLE_CAST_OP_TEMPLATE_FN(_ftype, _stype)  \
+static void SINGLE_CAST_FN_NAME(_ftype, _stype)(const void *first, const void *second, void *output){ \
+    (void)second; \
+    ((_stype *)output)[0] = (_stype)((_ftype *)first)[0]; \
+}
+IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_CAST_OP_TEMPLATE_FN)
+INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_cast_op_template_fns, SINGLE_CAST_FN_NAME)
 
 /* END PRIVATE FUNCTIONS */
 
@@ -224,11 +237,12 @@ void ADCI_EXIT_POINT adci_tensor_pad(struct adci_vector inputs, struct adci_tens
 
 void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output){
     if(input == output){
-        ADCI_LOG(ADCI_WARNING, "INPUT AND OUTPUT TENSORS FOR COPY OP ARE THE SAME");
+        ADCI_LOG(ADCI_WARNINadci_tensor_castG, "INPUT AND OUTPUT TENSORS FOR COPY OP ARE THE SAME");
         return;
     }
-    adci_check_tensor_types((struct adci_tensor *[]){input, output});
-    adci_check_tensor_dim((struct adci_tensor *[]){input, output});
+    adci_check_tensor_types((const struct adci_tensor *[]){input, output});
+    adci_check_tensor_dim((const struct adci_tensor *[]){input, output});
+    if(!output->data) adci_tensor_alloc(output);
     unsigned int volume = 1;
     for(unsigned int i = 0; i < input->n_dimension; i++) volume *= input->shape[i];
     memcpy(output->data, input->data, adci_tensor_dtype_size(input->dtype) * volume);
@@ -240,7 +254,7 @@ void ADCI_EXIT_POINT adci_tensor_prelu(struct adci_vector inputs, struct adci_te
     struct adci_tensor *element = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
     struct adci_tensor *parameters = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
     ADCI_ASSERT(element->dtype == output->dtype);
-    adci_check_tensor_dim((struct adci_tensor *[]){element, output});
+    adci_check_tensor_dim((const struct adci_tensor *[]){element, output});
     ADCI_ASSERT(parameters->n_dimension <= element->n_dimension);
     for(unsigned int i = 0; i < parameters->n_dimension; i++){
         ADCI_ASSERT(
@@ -260,6 +274,46 @@ void ADCI_EXIT_POINT adci_tensor_prelu(struct adci_vector inputs, struct adci_te
     }
 }
 
+void ADCI_EXIT_POINT adci_tensor_cast(struct adci_vector inputs, struct adci_tensor *output){
+    struct adci_tensor *input = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    adci_check_tensor_dim((const struct adci_tensor *[]){input, output});
+    if(!output->data) adci_tensor_alloc(output);
+    if(output->dtype == input->dtype) return adci_tensor_copy(input, output);
+    unsigned int volume = adci_tensor_element_count(input);
+    const single_op_template_fn_t cast = single_cast_op_template_fns[input->dtype * ADCI_NUM_SUPPORTED_TYPES + output->dtype]; 
+    const unsigned int in_elem_size = adci_tensor_dtype_size(input->dtype);
+    const unsigned int ou_elem_size = adci_tensor_dtype_size(input->dtype);
+    for(unsigned int i = 0; i < volume; i++)
+        cast(input->data + i * in_elem_size, NULL, output->data + i * ou_elem_size);
+}
+
+void ADCI_EXIT_POINT adci_tensor_softmax(struct adci_vector inputs, struct adci_tensor *output){
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    struct adci_tensor *axis = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    ADCI_ASSERT(axis->n_dimension == 1 && axis->shape[0] == 1);
+    ADCI_ASSERT(axis->dtype == ADCI_I32);
+    ADCI_ASSERT(output->dtype == ADCI_F32);
+    if(!output->data) adci_tensor_alloc(output);
+    adci_check_tensor_dim((const struct adci_tensor *[]){tensor, output});
+    const unsigned int dim = adci_tensor_get_i32(axis, 0);
+    ADCI_ASSERT(dim < tensor->n_dimension);
+    const unsigned int count = adci_tensor_element_count(tensor) / tensor->shape[dim];
+    const unsigned int in_elem_size = adci_tensor_dtype_size(tensor->dtype);
+    const single_op_template_fn_t cast = single_cast_op_template_fns[tensor->dtype * ADCI_NUM_SUPPORTED_TYPES + output->dtype]; 
+    /* WILL CONTAIN THE TEMPORARY INPUT CASTED VALUES */
+    float elements[tensor->shape[dim]];
+    for(unsigned int i = 0; i < count; i++){
+        float sum = 0;
+        for(unsigned int j = 0; j < tensor->shape[dim]; j++){
+            /* NO NEED FOR THIS STEP IF INPUT'S TYPE IS F32 */
+            cast(tensor->data + (j * count + i) * in_elem_size, NULL, elements + j);
+            sum += exp(elements[j]);
+        }
+        for(unsigned int j = 0; j < tensor->shape[dim]; j++)
+            ((float *)output->data)[j * count + i] = exp(elements[j]) / sum;
+    }
+}
+
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
     switch (op){
     case ADCI_TENSOR_INPUT: return;
@@ -268,6 +322,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_RESHAPE: return adci_tensor_reshape(inputs, output);
     case ADCI_TENSOR_COPY: return adci_tensor_copy(*(struct adci_tensor**)adci_vector_get(&inputs, 0), output);
     case ADCI_TENSOR_PAD: return adci_tensor_pad(inputs, output);
+    case ADCI_TENSOR_PRELU: return adci_tensor_prelu(inputs, output);
     default:
         ADCI_LOG(ADCI_ERROR, "OPERATION: %s NOT IMPLEMENTED YET", adci_tensor_op_str(op));
         ADCI_ASSERT(false);
