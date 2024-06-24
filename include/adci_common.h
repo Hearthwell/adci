@@ -52,6 +52,7 @@ struct adci_vector adci_vector_init(unsigned int element_bsize);
 struct adci_vector adci_vector_from_array(void *elements, unsigned int count, unsigned int element_bsize);
 bool adci_vector_add(struct adci_vector *vector, const void *element);
 bool adci_vector_remove(struct adci_vector *vector, const void *element);
+bool adci_vector_has(const struct adci_vector *vector, const void *element);
 void * adci_vector_get(const struct adci_vector *vector, unsigned int index);
 void adci_vector_free(struct adci_vector *vector);
 

@@ -56,3 +56,17 @@ TEST(ADCI_VECTOR_SUITE_NAME, adci_vector_remove){
     EXPECT_EQ(vector.length, 0);
     adci_vector_free(&vector);
 }
+
+TEST(ADCI_VECTOR_SUITE_NAME, adci_vector_has){
+    struct adci_vector vector = adci_vector_init(sizeof(unsigned int));
+    const unsigned int value = 109;
+    adci_vector_add(&vector, &value);
+    EXPECT_EQ(*((unsigned int *)vector.data), value);
+    EXPECT_EQ(vector.length, 1);
+    bool status = adci_vector_has(&vector, &value);
+    EXPECT_TRUE(status);
+    const unsigned int invalid = 10;
+    status = adci_vector_has(&vector, &invalid);
+    EXPECT_FALSE(status);
+    adci_vector_free(&vector);
+}

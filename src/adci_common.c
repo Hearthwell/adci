@@ -65,6 +65,13 @@ void * adci_vector_get(const struct adci_vector *vector, unsigned int index){
     return (uint8_t *)vector->data + index * vector->bsize;
 }
 
+bool adci_vector_has(const struct adci_vector *vector, const void *element){
+    for(unsigned int i = 0; i < vector->length; i++){
+        if(memcmp(vector->data + i * vector->bsize, element, vector->bsize) == 0) return true;
+    }
+    return false;
+}
+
 void adci_vector_free(struct adci_vector *vector){
     if(!vector->data) return;
     ADCI_FREE(vector->data);
