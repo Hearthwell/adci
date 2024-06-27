@@ -444,6 +444,47 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_reduce_max_all_keep_dim){
     adci_tensor_free(output);
 }
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_concat){
+    unsigned int shape[] = {2, 3};
+    adci_tensor *first = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor_alloc(first);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
+        ((float *)first->data)[i] = static_cast<float>(i);
+    adci_tensor *second = adci_tensor_init_2d(shape[0], shape[1] + 5, ADCI_F32);
+    adci_tensor_alloc(second);
+    for(unsigned int i = 0; i < shape[0] * (shape[1] + 5); i++)
+        ((float *)second->data)[i] = static_cast<float>(i);
+    adci_tensor *axis = adci_tensor_init_1d(1, ADCI_I32);
+    adci_tensor_alloc(axis);
+    adci_tensor_set_i32(axis, 1, 0);
+    adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_vector inputs = adci_vector_init(sizeof(adci_tensor*));
+    adci_vector_add(&inputs, &first); 
+    adci_vector_add(&inputs, &second); 
+    adci_vector_add(&inputs, &axis);
+    adci_tensor_concat(inputs, output);
+    EXPECT_EQ(output->n_dimension, 2);
+    EXPECT_EQ(output->shape[0], shape[0]);
+    EXPECT_EQ(output->shape[1], shape[1] + shape[1] + 5);
+    for(unsigned int i = 0; i < output->shape[0] * output->shape[1]; i++){
+        const unsigned int offset = i % output->shape[1];
+        const unsigned int dim = i / output->shape[1];
+        const float output_value = ((float*)output->data)[i];
+        if(offset < shape[1]){
+            const unsigned int index = dim * shape[1] + offset;
+            EXPECT_FLOAT_EQ(output_value, ((float *)first->data)[index]);
+        }else{
+            const unsigned int index = dim * second->shape[1] + offset - shape[1];
+            EXPECT_FLOAT_EQ(output_value, ((float *)second->data)[index]);
+        }
+    }
+    adci_vector_free(&inputs);
+    adci_tensor_free(first);
+    adci_tensor_free(second);
+    adci_tensor_free(axis);
+    adci_tensor_free(output);
+}
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_compute_op){
     /* TODO, IMPLEMENT */
 }
