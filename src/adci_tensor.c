@@ -48,7 +48,7 @@ static void adci_tensor_set_element_helper(struct adci_tensor *tensor, const voi
     va_end(ptr);
 }
 
-static void * adci_tensor_get_element_helper(struct adci_tensor *tensor, va_list ptr){
+static void * adci_tensor_get_element_helper(const struct adci_tensor *tensor, va_list ptr){
     const unsigned int full_volume = adci_tensor_element_count_ext(tensor->n_dimension, tensor->shape);
     unsigned int volume = full_volume;
     unsigned int offset = 0;
@@ -148,13 +148,13 @@ void * adci_tensor_get_element(struct adci_tensor *tensor, ...){
     return adci_tensor_get_element_helper(tensor, ptr);
 }
 
-float adci_tensor_get_f32(struct adci_tensor *tensor, ...){
+float adci_tensor_get_f32(const struct adci_tensor *tensor, ...){
     va_list ptr;
     va_start(ptr, tensor);
     return *(float *)adci_tensor_get_element_helper(tensor, ptr);
 }
 
-int32_t adci_tensor_get_i32(struct adci_tensor *tensor, ...){
+int32_t adci_tensor_get_i32(const struct adci_tensor *tensor, ...){
     va_list ptr;
     va_start(ptr, tensor);
     return *(int32_t *)adci_tensor_get_element_helper(tensor, ptr);

@@ -41,8 +41,8 @@ void adci_tensor_set_i32(struct adci_tensor *tensor, int32_t element, ...);
 void adci_tensor_set_element(struct adci_tensor *tensor, const void *element, ...);
 
 void * adci_tensor_get_element(struct adci_tensor *tensor, ...);
-float   adci_tensor_get_f32(struct adci_tensor *tensor, ...);
-int32_t adci_tensor_get_i32(struct adci_tensor *tensor, ...);
+float   adci_tensor_get_f32(const struct adci_tensor *tensor, ...);
+int32_t adci_tensor_get_i32(const struct adci_tensor *tensor, ...);
 
 /* RETURNS A VIEW ON THE SRC TENSOR, LETS DO STUFF LIKE, src[0][1] by giving n_index = 2 and index = {0, 1} */
 struct adci_tensor * adci_tensor_get_view(struct adci_tensor *src, unsigned int n_index, unsigned int *index);
