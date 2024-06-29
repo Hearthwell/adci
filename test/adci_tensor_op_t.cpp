@@ -485,6 +485,59 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_concat){
     adci_tensor_free(output);
 }
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_mult_1d){
+    unsigned int shape[] = {2, 3};
+    adci_tensor *first = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor *mult = adci_tensor_init_1d(shape[1], ADCI_F32);
+    adci_tensor_alloc(first);
+    adci_tensor_alloc(mult);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
+        ((float *)first->data)[i] = static_cast<float>(i);
+    for(unsigned int i = 0; i < shape[1]; i++)
+        adci_tensor_set_f32(mult, static_cast<float>(i), i);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+    adci_vector intputs = adci_vector_init(sizeof(adci_tensor *));
+    adci_vector_add(&intputs, &first);
+    adci_vector_add(&intputs, &mult);
+    adci_tensor_mul(intputs, &output);
+    for(unsigned int i = 0; i < shape[1]; i++)
+        EXPECT_FLOAT_EQ(((float *)mult->data)[i], static_cast<float>(i));
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
+        EXPECT_FLOAT_EQ(((float *)output.data)[i], ((float *)first->data)[i] * ((float *)mult->data)[i % shape[1]]);
+    adci_vector_free(&intputs);
+    adci_tensor_free(first);
+    adci_tensor_free(mult);
+    ADCI_FREE(output.data);
+}
+
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_mult_2d){
+    unsigned int shape[] = {10, 2, 3};
+    adci_tensor *first = adci_tensor_init(3, shape, ADCI_F32);
+    adci_tensor *mult = adci_tensor_init_2d(shape[1], shape[2], ADCI_F32);
+    adci_tensor_alloc(first);
+    adci_tensor_alloc(mult);
+    for(unsigned int i = 0; i < shape[0] * shape[1] * shape[2]; i++)
+        ((float *)first->data)[i] = static_cast<float>(i);
+    for(unsigned int i = 0; i < shape[1] * shape[2]; i++)
+        ((float *)mult->data)[i] = static_cast<float>(i);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+    adci_vector intputs = adci_vector_init(sizeof(adci_tensor *));
+    adci_vector_add(&intputs, &first);
+    adci_vector_add(&intputs, &mult);
+    adci_tensor_mul(intputs, &output);
+    adci_tensor_print(&output);
+    for(unsigned int i = 0; i < shape[1] * shape[2]; i++)
+        EXPECT_FLOAT_EQ(((float *)mult->data)[i], static_cast<float>(i));
+    for(unsigned int i = 0; i < shape[0] * shape[1] * shape[2]; i++)
+        EXPECT_FLOAT_EQ(((float *)output.data)[i], ((float *)first->data)[i] * ((float *)mult->data)[i % (shape[1] * shape[2])]);
+    adci_vector_free(&intputs);
+    adci_tensor_free(first);
+    adci_tensor_free(mult);
+    ADCI_FREE(output.data);
+}
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_compute_op){
     /* TODO, IMPLEMENT */
 }

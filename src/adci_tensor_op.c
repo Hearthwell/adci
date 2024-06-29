@@ -73,6 +73,7 @@ static void ADCI_EXIT_POINT adci_tensor_element_independent_op(struct adci_vecto
     }
 }   
 
+/* TODO, CHANGE TO USE NEW MECANISM TO SUPPORT MIXING TYPES */
 static void adci_tensor_single_add(struct adci_vector inputs, struct adci_tensor *output, unsigned int i){
     #define ADD_FOR_TYPE(_first, _output, _type) OP_FOR_TYPE(_first, _output, _type, +)
     for(unsigned int j = 0; j < inputs.length; j++){
@@ -91,6 +92,7 @@ static void adci_tensor_single_add(struct adci_vector inputs, struct adci_tensor
     }
 }
 
+/* TODO, CHANGE TO USE NEW MECANISM TO SUPPORT MIXING TYPES */
 static void adci_tensor_single_sub(struct adci_vector inputs, struct adci_tensor *output, unsigned int i){
     #define SUB_FOR_TYPE(_first, _output, _type) OP_FOR_TYPE(_first, _output, _type, -)
     for(unsigned int j = 0; j < inputs.length; j++){
@@ -183,6 +185,15 @@ static void SINGLE_CAST_FN_NAME(_ftype, _stype)(const void *first, const void *s
 }
 IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_CAST_OP_TEMPLATE_FN)
 INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_cast_op_template_fns, SINGLE_CAST_FN_NAME)
+
+/* MULTIPLY FUNCTIONS IMPLEMENTATION */
+#define SINGLE_MULT_FN_NAME(_ftype, _stype) single_mult_op_template_fn_ ## _ftype ## _ ## _stype
+#define SINGLE_MULT_OP_TEMPLATE_FN(_ftype, _stype)  \
+static void SINGLE_MULT_FN_NAME(_ftype, _stype)(const void *first, const void *second, void *output){ \
+    ((_ftype *)output)[0] = (_ftype)(((_ftype *)first)[0] * ((_stype *)second)[0]); \
+}
+IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_MULT_OP_TEMPLATE_FN)
+INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_mult_op_template_fns, SINGLE_MULT_FN_NAME)
 
 /* END PRIVATE FUNCTIONS */
 
@@ -442,6 +453,31 @@ void ADCI_EXIT_POINT adci_tensor_concat(struct adci_vector inputs, struct adci_t
     if(output_in_input) ADCI_FREE(temp.data);
 }
 
+void ADCI_EXIT_POINT adci_tensor_mul(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 2);
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    struct adci_tensor *mult = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    for(unsigned int i = 0; i < mult->n_dimension; i++){
+        ADCI_ASSERT(
+            tensor->shape[tensor->n_dimension - i - 1] == 1 ||
+            mult->shape[mult->n_dimension - i - 1] == 1 ||
+            tensor->shape[tensor->n_dimension - i - 1] == mult->shape[mult->n_dimension - i - 1]
+        );
+    }
+    /* BROADCASTING VALID */
+    struct adci_tensor temp = *tensor;
+    if(tensor == output) output->data = NULL;
+    adci_prepare_output_tensor(tensor->shape, tensor->n_dimension, tensor->dtype, output);
+    const unsigned int volume = adci_tensor_element_count(tensor);
+    const unsigned int mult_volume = adci_tensor_element_count(mult);
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    const unsigned int mult_element_size = adci_tensor_dtype_size(mult->dtype);
+    single_op_template_fn_t single_mult = single_mult_op_template_fns[tensor->dtype * ADCI_NUM_SUPPORTED_TYPES + mult->dtype];
+    for(unsigned int i = 0; i < volume; i++)
+        single_mult(tensor->data + i * element_size, mult->data + (i % mult_volume) * mult_element_size, output->data + i * element_size);
+    if(tensor == output) ADCI_FREE(temp.data);
+}
+
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
     switch (op){
     case ADCI_TENSOR_INPUT: return;
@@ -455,6 +491,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_SOFTMAX: return adci_tensor_softmax(inputs, output);
     case ADCI_TENSOR_REDUCE_MAX: return adci_tensor_reduce_max(inputs, output);
     case ADCI_TENSOR_CONCAT: return adci_tensor_concat(inputs, output);
+    case ADCI_TENSOR_MUL: return adci_tensor_mul(inputs, output);
     default:
         ADCI_LOG(ADCI_ERROR, "OPERATION: %s NOT IMPLEMENTED YET", adci_tensor_op_str(op));
         ADCI_ASSERT(false);

@@ -15,8 +15,8 @@ enum adci_tensor_op{
     ADCI_TENSOR_SOFTMAX,
     ADCI_TENSOR_REDUCE_MAX,
     ADCI_TENSOR_CONCAT,
-
     ADCI_TENSOR_MUL,
+
     ADCI_TENSOR_BATCH_MATMUL,
     ADCI_TENSOR_CONV2D,
     ADCI_TENSOR_AVG_POOL2D,
@@ -35,6 +35,7 @@ void ADCI_EXIT_POINT adci_tensor_softmax(struct adci_vector inputs, struct adci_
 /* @adci_tensor_reduce_max: inputs => [ tensor, axis, keepdims (bool) ] */
 void ADCI_EXIT_POINT adci_tensor_reduce_max(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_concat(struct adci_vector inputs, struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_mul(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output);
 
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op);
