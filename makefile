@@ -9,7 +9,7 @@ CC:=gcc
 # TODO, REMOVE DEBUG INFO / ADD RELEASE PRESET, BUILD
 C_DEBUG_FLAGS:=-DADCI_BUILD_DEBUG -g
 C_FLAGS:=-Wall -Wextra -Iinclude -Isrc $(C_DEBUG_FLAGS)
-C_LIBS:=
+C_LIBS:=-lm
 
 $(OUT_DIR)/%.c.o:$(SRC_DIR)/%.c
 	$(CC) $(C_FLAGS) -c -o $@ $<
