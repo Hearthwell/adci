@@ -17,11 +17,11 @@ enum adci_tensor_op{
     ADCI_TENSOR_CONCAT,
     ADCI_TENSOR_MUL,
     ADCI_TENSOR_MAX_POOL2D,
+    ADCI_TENSOR_RELU,
 
     ADCI_TENSOR_FULLY_CONNECTED,
     ADCI_TENSOR_CONV2D,
     ADCI_TENSOR_TRANSPOSE,
-    ADCI_TENSOR_RELU,
 
     ADCI_TENSOR_BATCH_MATMUL,
     ADCI_TENSOR_AVG_POOL2D,
@@ -34,6 +34,7 @@ void ADCI_EXIT_POINT adci_tensor_sub(struct adci_vector inputs, struct adci_tens
 void ADCI_EXIT_POINT adci_tensor_reshape(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_pad(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_prelu(struct adci_vector inputs, struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_relu(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_cast(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_softmax(struct adci_vector inputs, struct adci_tensor *output);
 /* @adci_tensor_reduce_max: inputs => [ tensor, axis, keepdims (bool) ] */

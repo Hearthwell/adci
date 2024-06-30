@@ -75,11 +75,11 @@ static void adci_generic_broadcast_op(struct adci_vector inputs, struct adci_ten
     if(tensor == output) output->data = NULL;
     adci_prepare_output_tensor(tensor->shape, tensor->n_dimension, tensor->dtype, output);
     const unsigned int volume = adci_tensor_element_count(tensor);
-    const unsigned int mult_volume = adci_tensor_element_count(operand);
+    const unsigned int operand_volume = adci_tensor_element_count(operand);
     const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
-    const unsigned int mult_element_size = adci_tensor_dtype_size(operand->dtype);
+    const unsigned int operand_element_size = adci_tensor_dtype_size(operand->dtype);
     for(unsigned int i = 0; i < volume; i++)
-        op(tensor->data + i * element_size, operand->data + (i % mult_volume) * mult_element_size, output->data + i * element_size);
+        op(tensor->data + i * element_size, operand->data + (i % operand_volume) * operand_element_size, output->data + i * element_size);
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
@@ -214,6 +214,16 @@ static void SINGLE_SUB_FN_NAME(_ftype, _stype)(const void *first, const void *se
 IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_SUB_OP_TEMPLATE_FN)
 INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_sub_op_template_fns, SINGLE_SUB_FN_NAME)
 
+/* RELU FUNCTIONS IMPLEMENTATION */
+#define SINGLE_RELU_FN_NAME(_ftype, _stype) single_relu_op_template_fn_ ## _ftype ## _ ## _stype
+#define SINGLE_RELU_OP_TEMPLATE_FN(_ftype, _stype)  \
+static void SINGLE_RELU_FN_NAME(_ftype, _stype)(const void *first, const void *second, void *output){ \
+    (void)second; \
+    ((_ftype *)output)[0] = (((_ftype *)first)[0] > (_ftype)0) ? ((_ftype *)first)[0] : (_ftype)0; \
+}
+IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_RELU_OP_TEMPLATE_FN)
+INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_relu_op_template_fns, SINGLE_RELU_FN_NAME)
+
 /* END PRIVATE FUNCTIONS */
 
 void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tensor *output){
@@ -305,6 +315,22 @@ void ADCI_EXIT_POINT adci_tensor_prelu(struct adci_vector inputs, struct adci_te
         prelu(temp.data + offset, parameters->data + param_offset, output->data + offset);
     }
     if(element == output) ADCI_FREE(temp.data);
+}
+
+void ADCI_EXIT_POINT adci_tensor_relu(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 1);
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    const unsigned int volume = adci_tensor_element_count(tensor);
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    struct adci_tensor temp = *tensor;
+    if(tensor == output) output->data = NULL;
+    adci_prepare_output_tensor(tensor->shape, tensor->n_dimension, tensor->dtype, output);
+    single_op_template_fn_t relu_op = single_relu_op_template_fns[tensor->dtype * ADCI_NUM_SUPPORTED_TYPES];
+    for(unsigned int i = 0; i < volume; i++){
+        const unsigned int offset = i * element_size; 
+        relu_op(temp.data + offset, NULL, output->data + offset);
+    }
+    if(tensor == output) ADCI_FREE(temp.data);
 }
 
 void ADCI_EXIT_POINT adci_tensor_cast(struct adci_vector inputs, struct adci_tensor *output){
@@ -538,6 +564,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_COPY: return adci_tensor_copy(*(struct adci_tensor**)adci_vector_get(&inputs, 0), output);
     case ADCI_TENSOR_PAD: return adci_tensor_pad(inputs, output);
     case ADCI_TENSOR_PRELU: return adci_tensor_prelu(inputs, output);
+    case ADCI_TENSOR_RELU: return adci_tensor_relu(inputs, output);
     case ADCI_TENSOR_CAST: return adci_tensor_cast(inputs, output);
     case ADCI_TENSOR_SOFTMAX: return adci_tensor_softmax(inputs, output);
     case ADCI_TENSOR_REDUCE_MAX: return adci_tensor_reduce_max(inputs, output);

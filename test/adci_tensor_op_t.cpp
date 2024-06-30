@@ -256,6 +256,29 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_prelu){
     adci_tensor_free(output);
 }   
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_relu){
+    unsigned int shape[] = {4, 3};
+    adci_tensor *first = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor_alloc(first);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++){
+        float mult = i % 2 == 0 ? -1.f : 1.f;
+        ((float *)first->data)[i] = mult * i;
+    }
+    struct adci_vector inputs = adci_vector_init(sizeof(adci_tensor *));
+    adci_vector_add(&inputs, &first);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+    adci_tensor_relu(inputs, &output);
+    for(unsigned int i = 0; i < shape[0] * shape[1]; i++){
+        float value = (i % 2 == 0 ? -1.f : 1.f) * i;
+        if(value > 0) EXPECT_FLOAT_EQ(((float *)output.data)[i], static_cast<float>(i));
+        else EXPECT_FLOAT_EQ(((float *)output.data)[i], static_cast<float>(0));
+    }
+    adci_vector_free(&inputs);
+    adci_tensor_free(first);
+    ADCI_FREE(output.data);
+}
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_cast){
     unsigned int shape[] = {4, 3};
     adci_tensor *first = adci_tensor_init_2d(shape[0], shape[1], ADCI_I32);
