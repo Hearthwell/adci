@@ -527,7 +527,6 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_mult_2d){
     adci_vector_add(&intputs, &first);
     adci_vector_add(&intputs, &mult);
     adci_tensor_mul(intputs, &output);
-    adci_tensor_print(&output);
     for(unsigned int i = 0; i < shape[1] * shape[2]; i++)
         EXPECT_FLOAT_EQ(((float *)mult->data)[i], static_cast<float>(i));
     for(unsigned int i = 0; i < shape[0] * shape[1] * shape[2]; i++)
@@ -535,6 +534,52 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_mult_2d){
     adci_vector_free(&intputs);
     adci_tensor_free(first);
     adci_tensor_free(mult);
+    ADCI_FREE(output.data);
+}
+
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_max_pool2D){
+    unsigned int shape[] = {1, 1, 4, 4};
+    float values[][4] = {
+        {1.f, 2.f , 5.f , 6.f },
+        {0.f, 6.f , 10.f, 6.f },
+        {1.f, 20.f, 5.f , 6.f },
+        {1.f, 2.f , 5.f , 30.f},
+    };
+    adci_tensor *tensor = adci_tensor_init(sizeof(shape)/sizeof(unsigned int), shape, ADCI_F32);
+    adci_tensor_alloc_set(tensor, values);
+    unsigned int size_data[] = {2, 2};
+    adci_tensor *size   = adci_tensor_init_1d(2, ADCI_I32);
+    adci_tensor_alloc_set(size, size_data);
+    unsigned int stride_data[] = {2, 2};
+    adci_tensor *stride = adci_tensor_init_1d(2, ADCI_I32);
+    adci_tensor_alloc_set(stride, stride_data);
+    unsigned int dims_data[] = {2, 3};
+    adci_tensor *dims = adci_tensor_init_1d(2, ADCI_I32);
+    adci_tensor_alloc_set(dims, dims_data);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+
+    adci_vector inputs = adci_vector_init(sizeof(adci_tensor *));
+    adci_vector_add(&inputs, &tensor);
+    adci_vector_add(&inputs, &size);
+    adci_vector_add(&inputs, &stride);
+    adci_vector_add(&inputs, &dims);
+    adci_tensor_max_pool2D(inputs, &output);
+    EXPECT_EQ(output.n_dimension, 4);
+    EXPECT_EQ(output.shape[0], 1);
+    EXPECT_EQ(output.shape[1], 1);
+    EXPECT_EQ(output.shape[2], 2);
+    EXPECT_EQ(output.shape[3], 2);
+    EXPECT_EQ(output.dtype, tensor->dtype);
+    EXPECT_FLOAT_EQ(((float *)output.data)[0], 6.f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[1], 10.f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[2], 20.f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[3], 30.f);
+    adci_vector_free(&inputs);
+    adci_tensor_free(tensor);
+    adci_tensor_free(size);
+    adci_tensor_free(stride);
+    adci_tensor_free(dims);
     ADCI_FREE(output.data);
 }
 

@@ -6,6 +6,8 @@
 
 #include "adci_tensor_common.h"
 
+typedef void (*single_op_template_fn_t)(const void *first, const void *second, void *output);
+
 /* PRIVATE FUNCTIONS */
 
 static void ADCI_EXIT_POINT adci_check_tensor_dim(const struct adci_tensor **inputs){
@@ -140,7 +142,41 @@ static void adci_reduce_max_next(const struct adci_tensor *tensor, unsigned int 
     }
 }
 
-typedef void (*single_op_template_fn_t)(const void *first, const void *second, void *output);
+static void adci_compute_pool2d(
+    const struct adci_tensor *tensor, 
+    const struct adci_tensor *size,
+    const struct adci_tensor *stride,
+    const struct adci_tensor *dims,
+    struct adci_tensor *output,
+    const struct adci_multi_dim_counter free_tensor_counter,
+    const struct adci_multi_dim_counter free_output_counter,
+    unsigned int current_out_width, unsigned int current_out_height,
+    single_op_template_fn_t pool_op)
+    {
+    const unsigned int width = adci_tensor_get_i32(size, 0);
+    const unsigned int height = adci_tensor_get_i32(size, 1);
+    unsigned int tensor_offset = adci_tensor_get_counter_offset(free_tensor_counter);
+    const unsigned int current_width = current_out_width * adci_tensor_get_i32(stride, 0);
+    const unsigned int current_height = current_out_height * adci_tensor_get_i32(stride, 1);
+    tensor_offset += current_width * free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 0)];
+    tensor_offset += current_height * free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
+    unsigned int output_offset = adci_tensor_get_counter_offset(free_output_counter);
+    output_offset += current_out_width * free_output_counter.precomputed_volumes[adci_tensor_get_i32(dims, 0)];
+    output_offset += current_out_height * free_output_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    void *output_data = output->data + output_offset * element_size;
+    adci_reset_value(output_data, output->dtype);
+    const unsigned int width_volume = free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 0)];
+    const unsigned int height_volume = free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
+    for(unsigned int i = 0; i < width; i++){
+        const unsigned int curr_inner_tensor_width_offset = i * width_volume;
+        for(unsigned int j = 0; j < height; j++){
+            const unsigned int curr_inner_tensor_height_offset = j * height_volume;
+            pool_op(tensor->data + (tensor_offset + curr_inner_tensor_width_offset + curr_inner_tensor_height_offset) * element_size, output_data, output_data);
+        }
+    }
+}
+
 #define IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(_TEMPLATE_FN) \
     _TEMPLATE_FN(float, float) \
     _TEMPLATE_FN(float, int32_t) \
@@ -194,6 +230,15 @@ static void SINGLE_MULT_FN_NAME(_ftype, _stype)(const void *first, const void *s
 }
 IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_MULT_OP_TEMPLATE_FN)
 INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_mult_op_template_fns, SINGLE_MULT_FN_NAME)
+
+/* MAX FUNCTION IMPLEMENTATION */
+#define SINGLE_MAX_FN_NAME(_ftype, _stype) single_max_op_template_fn_ ## _ftype ## _ ## _stype
+#define SINGLE_MAX_OP_TEMPLATE_FN(_ftype, _stype)  \
+static void SINGLE_MAX_FN_NAME(_ftype, _stype)(const void *first, const void *second, void *output){ \
+    ((_ftype *)output)[0] = ((_ftype)(((_ftype *)first)[0] > ((_stype *)second)[0])) ? ((_ftype *)first)[0] : ((_stype *)second)[0]; \
+}
+IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_MAX_OP_TEMPLATE_FN)
+INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_max_op_template_fns, SINGLE_MAX_FN_NAME)
 
 /* END PRIVATE FUNCTIONS */
 
@@ -478,6 +523,49 @@ void ADCI_EXIT_POINT adci_tensor_mul(struct adci_vector inputs, struct adci_tens
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
+void ADCI_EXIT_POINT adci_tensor_max_pool2D(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 4);
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
+    /* WIDTH, HEIGHT ORDER */
+    struct adci_tensor *size   = *(struct adci_tensor **)adci_vector_get(&inputs, 1); 
+    struct adci_tensor *stride = *(struct adci_tensor **)adci_vector_get(&inputs, 2);
+    /* SPECIFIES THE 2 DIMENSIONS TO BE CONSIDERED FOR THE 2D POOL [WIDTH_DIM, HEIGHT_DIM]*/
+    struct adci_tensor *dims   = *(struct adci_tensor **)adci_vector_get(&inputs, 3);
+    ADCI_ASSERT(dims->n_dimension == 1 && dims->shape[0] == 2);
+    ADCI_ASSERT(size->n_dimension == 1 && size->shape[0] == 2);
+    ADCI_ASSERT(stride->n_dimension == 1 && stride->shape[0] == 2);
+    ADCI_ASSERT(size->dtype == ADCI_I32 && stride->dtype == ADCI_I32 && dims->dtype == ADCI_I32);
+    /* COMPUTE OUTPUT SHAPE */
+    unsigned int shape[tensor->n_dimension];
+    memcpy(shape, tensor->shape, sizeof(shape));
+    for(unsigned int i = 0; i < dims->shape[0]; i++){
+        unsigned int current = adci_tensor_get_i32(dims, i); 
+        shape[current] = ((tensor->shape[current] - adci_tensor_get_i32(size, i)) / adci_tensor_get_i32(stride, i)) + 1;
+    }
+    struct adci_tensor temp = *tensor;
+    if(tensor == output) output->data = NULL;
+    unsigned int output_volume = adci_prepare_output_tensor(shape, tensor->n_dimension, tensor->dtype, output) / adci_tensor_dtype_size(tensor->dtype);
+    /* WE WANT A COUNTER ARROUND THE FREE DIMENSIONS (DIMENSIONS NOT CONCERNED BY THE 2D POOL) */
+    unsigned int index = 0;
+    unsigned int free_dims[tensor->n_dimension - 2];
+    for(int i = 0; i < (int)tensor->n_dimension; i++)
+        if(adci_tensor_get_i32(dims, 0) != i && adci_tensor_get_i32(dims, 1) != i) free_dims[index++] = i;
+    struct adci_multi_dim_counter output_counter = adci_tensor_init_multidim_counter(output, free_dims, dims->shape[0]);
+    struct adci_multi_dim_counter tensor_counter = adci_tensor_init_multidim_counter(tensor, free_dims, dims->shape[0]);
+    const unsigned int matrix_count = output_volume / (output->shape[adci_tensor_get_i32(dims, 0)] * output->shape[adci_tensor_get_i32(dims, 1)]);
+    single_op_template_fn_t max_op = single_max_op_template_fns[tensor->dtype * ADCI_NUM_SUPPORTED_TYPES + tensor->dtype];
+    for(unsigned int i = 0; i < matrix_count; i++){
+        for(unsigned int width = 0; width < output->shape[adci_tensor_get_i32(dims, 0)]; width++){
+            for(unsigned int height = 0; height < output->shape[adci_tensor_get_i32(dims, 1)]; height++)
+                adci_compute_pool2d(tensor, size, stride, dims, output, tensor_counter, output_counter, width, height, max_op);
+        }
+        /* PASS TO NEXT 2D PLANE */
+        adci_tensor_increase_counter(&output_counter);
+        adci_tensor_increase_counter(&tensor_counter);
+    }
+    if(tensor == output) ADCI_FREE(temp.data);
+}
+
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
     switch (op){
     case ADCI_TENSOR_INPUT: return;
@@ -492,6 +580,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_REDUCE_MAX: return adci_tensor_reduce_max(inputs, output);
     case ADCI_TENSOR_CONCAT: return adci_tensor_concat(inputs, output);
     case ADCI_TENSOR_MUL: return adci_tensor_mul(inputs, output);
+    case ADCI_TENSOR_MAX_POOL2D:  return adci_tensor_max_pool2D(inputs, output);
     default:
         ADCI_LOG(ADCI_ERROR, "OPERATION: %s NOT IMPLEMENTED YET", adci_tensor_op_str(op));
         ADCI_ASSERT(false);
