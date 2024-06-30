@@ -133,15 +133,6 @@ static void adci_tensor_pad_fill_data(const struct adci_tensor *input, const str
     }
 }
 
-static void adci_reduce_max_next(const struct adci_tensor *tensor, unsigned int *indeces, const struct adci_vector dim_mapping){
-    for(unsigned int i = 0; i < dim_mapping.length; i++){
-        const unsigned int index = dim_mapping.length - 1 - i;
-        indeces[index] += 1;
-        if(indeces[index] < tensor->shape[((unsigned int *)dim_mapping.data)[index]]) break;
-        indeces[index] = 0;
-    }
-}
-
 static void adci_compute_pool2d(
     const struct adci_tensor *tensor, 
     const struct adci_tensor *size,
@@ -414,30 +405,21 @@ void ADCI_EXIT_POINT adci_tensor_reduce_max(struct adci_vector inputs, struct ad
         output->n_dimension = 1;
         output->shape[0] = 1;
     }
-    unsigned int dim_volumes[temp.n_dimension];
-    for(unsigned int i = 0; i < temp.n_dimension; i++)
-        dim_volumes[i] = adci_tensor_element_count_ext(temp.n_dimension - i - 1, temp.shape + i + 1);
     int8_t maximum[element_size];
-    unsigned int free_dim_index[temp.n_dimension - axis->shape[0]];
-    unsigned int reduced_dim_index[axis->shape[0]];
-    memset(free_dim_index, 0, sizeof(free_dim_index));
+    struct adci_multi_dim_counter free_dim_counter = adci_tensor_init_multidim_counter(&temp, (unsigned int *)free_dim_mapping.data, free_dim_mapping.length);
     for(unsigned int i = 0; i < out_volume; i++){
-        unsigned int fixed_offset = 0;
-        for(unsigned int j = 0; j < free_dim_mapping.length; j++)
-            fixed_offset += free_dim_index[j] * dim_volumes[((unsigned int *)free_dim_mapping.data)[j]];
+        unsigned int fixed_offset = adci_tensor_get_counter_offset(free_dim_counter);
         adci_reset_value(maximum, tensor->dtype);
-        memset(reduced_dim_index, 0, sizeof(reduced_dim_index));
+        struct adci_multi_dim_counter reduced_dim_counter = adci_tensor_init_multidim_counter(&temp, (unsigned int *)reduced_dim_mapping.data, reduced_dim_mapping.length);
         for(unsigned int j = 0; j < reduce_volume; j++){
             /* CHECK FOR MAXIMUM VALUE AMONGST THE REDUCED DIMENSIONS */
-            unsigned int reduced_offset = 0;
-            for(unsigned int k = 0; k < reduced_dim_mapping.length; k++)
-                reduced_offset += reduced_dim_index[k] * dim_volumes[((unsigned int *)reduced_dim_mapping.data)[k]];
+            unsigned int reduced_offset = adci_tensor_get_counter_offset(reduced_dim_counter);
             int8_t *current = (int8_t *)temp.data + (fixed_offset + reduced_offset) * element_size;
             adci_compare_max(current, maximum, temp.dtype);
-            adci_reduce_max_next(&temp, reduced_dim_index, reduced_dim_mapping);
+            adci_tensor_increase_counter(&reduced_dim_counter);
         }
         memcpy((int8_t *)output->data + i * element_size, maximum, element_size);
-        adci_reduce_max_next(&temp, free_dim_index, free_dim_mapping);
+        adci_tensor_increase_counter(&free_dim_counter);
     }
     if(keep_dims){
         output->n_dimension = temp.n_dimension;
