@@ -606,7 +606,102 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_max_pool2D){
     ADCI_FREE(output.data);
 }
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_conv2D_BWHC){
+    unsigned int shape[] = {1 ,4, 4, 1};
+    float values[][4] = {
+        {1.f, 2.f , 5.f , 6.f },
+        {0.f, 6.f , 10.f, 6.f },
+        {1.f, 20.f, 5.f , 6.f },
+        {1.f, 2.f , 5.f , 30.f},
+    };
+    adci_tensor *tensor = adci_tensor_init(4, shape, ADCI_F32);
+    adci_tensor_alloc_set(tensor, values);
+    unsigned int filter_shape[] = {1, 2, 2, 1};
+    adci_tensor *filter   = adci_tensor_init(4, filter_shape, ADCI_F32);
+    adci_tensor_alloc(filter);
+    for(unsigned int i = 0; i < 4; i++) ((float *)filter->data)[i] = 1.0f;
+    unsigned int stride_data[] = {2, 2};
+    adci_tensor *stride = adci_tensor_init_1d(2, ADCI_I32);
+    adci_tensor_alloc_set(stride, stride_data);
+    unsigned int dims_data[] = {1, 2};
+    adci_tensor *dims = adci_tensor_init_1d(2, ADCI_I32);
+    adci_tensor_alloc_set(dims, dims_data);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+
+    adci_vector inputs = adci_vector_init(sizeof(adci_tensor *));
+    adci_vector_add(&inputs, &tensor);
+    adci_vector_add(&inputs, &filter);
+    adci_vector_add(&inputs, &stride);
+    adci_vector_add(&inputs, &dims);
+
+    adci_tensor_conv2D(inputs, &output);
+    EXPECT_EQ(output.n_dimension, 4);
+    EXPECT_EQ(output.shape[0], 1);
+    EXPECT_EQ(output.shape[1], 2);
+    EXPECT_EQ(output.shape[2], 2);
+    EXPECT_EQ(output.shape[3], 1);
+    EXPECT_EQ(output.dtype, tensor->dtype);
+    EXPECT_FLOAT_EQ(((float *)output.data)[0], 9.f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[1], 27.f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[2], 24.f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[3], 46.f);
+    adci_vector_free(&inputs);
+    adci_tensor_free(tensor);
+    adci_tensor_free(filter);
+    adci_tensor_free(stride);
+    adci_tensor_free(dims);
+    ADCI_FREE(output.data);
+}
+
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_conv2D_BCWH){
+    unsigned int shape[] = {1, 1, 4, 4};
+    float values[][4] = {
+        {1.f, 2.f , 5.f , 6.f },
+        {0.f, 6.f , 10.f, 6.f },
+        {1.f, 20.f, 5.f , 6.f },
+        {1.f, 2.f , 5.f , 30.f},
+    };
+    adci_tensor *tensor = adci_tensor_init(4, shape, ADCI_F32);
+    adci_tensor_alloc_set(tensor, values);
+    unsigned int filter_shape[] = {1, 1, 2, 2};
+    adci_tensor *filter   = adci_tensor_init(4, filter_shape, ADCI_F32);
+    adci_tensor_alloc(filter);
+    for(unsigned int i = 0; i < 4; i++) ((float *)filter->data)[i] = 1.0f;
+    unsigned int stride_data[] = {2, 2};
+    adci_tensor *stride = adci_tensor_init_1d(2, ADCI_I32);
+    adci_tensor_alloc_set(stride, stride_data);
+    unsigned int dims_data[] = {2, 3};
+    adci_tensor *dims = adci_tensor_init_1d(2, ADCI_I32);
+    adci_tensor_alloc_set(dims, dims_data);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+
+    adci_vector inputs = adci_vector_init(sizeof(adci_tensor *));
+    adci_vector_add(&inputs, &tensor);
+    adci_vector_add(&inputs, &filter);
+    adci_vector_add(&inputs, &stride);
+    adci_vector_add(&inputs, &dims);
+
+    adci_tensor_conv2D(inputs, &output);
+    EXPECT_EQ(output.n_dimension, 4);
+    EXPECT_EQ(output.shape[0], 1);
+    EXPECT_EQ(output.shape[1], 1);
+    EXPECT_EQ(output.shape[2], 2);
+    EXPECT_EQ(output.shape[3], 2);
+    EXPECT_EQ(output.dtype, tensor->dtype);
+    EXPECT_FLOAT_EQ(((float *)output.data)[0], 9.f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[1], 27.f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[2], 24.f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[3], 46.f);
+    adci_vector_free(&inputs);
+    adci_tensor_free(tensor);
+    adci_tensor_free(filter);
+    adci_tensor_free(stride);
+    adci_tensor_free(dims);
+    ADCI_FREE(output.data);
+}
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_compute_op){
     /* TODO, IMPLEMENT */
 }
-

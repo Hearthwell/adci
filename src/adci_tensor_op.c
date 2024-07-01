@@ -6,133 +6,10 @@
 
 #include "adci_tensor_common.h"
 
-typedef void (*single_op_template_fn_t)(const void *first, const void *second, void *output);
 
 /* PRIVATE FUNCTIONS */
 
-/* TODO, REMOVE IF NOT USED */
-#if 0
-static void ADCI_EXIT_POINT adci_check_tensor_dim(const struct adci_tensor **inputs){
-    ADCI_ASSERT(inputs[0]->n_dimension == inputs[1]->n_dimension);
-    for(unsigned int i = 0; i < inputs[0]->n_dimension; i++){
-        ADCI_ASSERT(inputs[0]->shape[i] == inputs[1]->shape[i]);
-    }
-}
-#endif
-
-static void adci_reset_value(void *data, enum adci_tensor_type type){
-    #define ADCI_RESET(_type) *((_type*)data) = (_type)0
-    switch (type){
-    case ADCI_F32: ADCI_RESET(float); break;
-    case ADCI_I32: ADCI_RESET(int32_t); break;
-    case ADCI_I8: ADCI_RESET(int8_t); break;
-    default:
-        ADCI_LOG(ADCI_ERROR, "RESET FOR TYPE %d, NOT IMPLEMENTED", type);
-    }
-}
-
-static void adci_compare_max(const void *data, void *maximum, enum adci_tensor_type type){
-    #define ADCI_CMP_MAX(_type) *((_type*)maximum) = (*((_type*)maximum) < *((_type*)data)) ? *((_type*)data) : *((_type*)maximum)
-    switch (type){
-    case ADCI_F32: ADCI_CMP_MAX(float); break;
-    case ADCI_I32: ADCI_CMP_MAX(int32_t); break;
-    case ADCI_I8: ADCI_CMP_MAX(int8_t); break;
-    default:
-        ADCI_LOG(ADCI_ERROR, "RESET FOR TYPE %d, NOT IMPLEMENTED", type);
-    }
-}
-
-static unsigned int adci_prepare_output_tensor(unsigned int *shape, unsigned int length, enum adci_tensor_type type, struct adci_tensor *tensor){
-    const unsigned int previous_size = adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype);
-    const unsigned int required_size = adci_tensor_element_count_ext(length, shape) * adci_tensor_dtype_size(type);
-    tensor->n_dimension = length;
-    tensor->dtype = type;
-    memcpy(tensor->shape, shape, length * sizeof(unsigned int));
-    if(tensor->data == NULL) tensor->data = ADCI_ALLOC(required_size);
-    /* TO REALLOCATE MEMORY ONLY IN THE CASE OF BUFFER NOT LARGE ENOUGH */
-    else if(required_size > previous_size) tensor->data = ADCI_REALLOC(tensor->data, required_size);
-    return required_size;
-}
-
-static void adci_check_tensor_broadcast(const struct adci_tensor *tensor, const struct adci_tensor *second){
-    const unsigned length = (tensor->n_dimension < second->n_dimension) ? tensor->n_dimension : second->n_dimension;
-    for(unsigned int i = 0; i < length; i++){
-        ADCI_ASSERT(
-            tensor->shape[tensor->n_dimension - i - 1] == 1 ||
-            second->shape[second->n_dimension - i - 1] == 1 ||
-            tensor->shape[tensor->n_dimension - i - 1] == second->shape[second->n_dimension - i - 1]
-        );
-    }
-}
-
-static void adci_generic_broadcast_op(struct adci_vector inputs, struct adci_tensor *output, single_op_template_fn_t op){
-    ADCI_ASSERT(inputs.length == 2);
-    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
-    struct adci_tensor *operand = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
-    adci_check_tensor_broadcast(tensor, operand);
-    /* BROADCASTING VALID */
-    struct adci_tensor temp = *tensor;
-    if(tensor == output) output->data = NULL;
-    adci_prepare_output_tensor(tensor->shape, tensor->n_dimension, tensor->dtype, output);
-    const unsigned int volume = adci_tensor_element_count(tensor);
-    const unsigned int operand_volume = adci_tensor_element_count(operand);
-    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
-    const unsigned int operand_element_size = adci_tensor_dtype_size(operand->dtype);
-    for(unsigned int i = 0; i < volume; i++)
-        op(tensor->data + i * element_size, operand->data + (i % operand_volume) * operand_element_size, output->data + i * element_size);
-    if(tensor == output) ADCI_FREE(temp.data);
-}
-
-static void adci_tensor_pad_fill_data(const struct adci_tensor *input, const struct adci_tensor *padding, struct adci_tensor *output, unsigned int dim, unsigned int in_offset, unsigned int ou_offset){
-    const unsigned int bsize = adci_tensor_dtype_size(input->dtype);
-    unsigned int ou_volume = adci_tensor_element_count_ext(output->n_dimension - dim - 1, output->shape + dim + 1); 
-    unsigned int in_volume = adci_tensor_element_count_ext(input->n_dimension - dim - 1, input->shape + dim + 1);
-    for(unsigned int i = 0; i < input->shape[dim]; i++){
-        const unsigned int curr_ou_offset = (i + ((int32_t *)padding->data)[dim * padding->shape[1]]) * ou_volume;
-        const unsigned int curr_in_offset = i * in_volume;
-        if(dim == input->n_dimension - 1){
-            const unsigned int fou_offset = (ou_offset + curr_ou_offset) * bsize;
-            const unsigned int fin_offset = (in_offset + curr_in_offset) * bsize;
-            memcpy((int8_t *)output->data + fou_offset, (int8_t *)input->data + fin_offset, bsize);
-        }else adci_tensor_pad_fill_data(input, padding, output, dim + 1, in_offset + curr_in_offset, ou_offset + curr_ou_offset);
-    }
-}
-
-static void adci_compute_pool2d(
-    const struct adci_tensor *tensor, 
-    const struct adci_tensor *size,
-    const struct adci_tensor *stride,
-    const struct adci_tensor *dims,
-    struct adci_tensor *output,
-    const struct adci_multi_dim_counter free_tensor_counter,
-    const struct adci_multi_dim_counter free_output_counter,
-    unsigned int current_out_width, unsigned int current_out_height,
-    single_op_template_fn_t pool_op)
-    {
-    const unsigned int width = adci_tensor_get_i32(size, 0);
-    const unsigned int height = adci_tensor_get_i32(size, 1);
-    unsigned int tensor_offset = adci_tensor_get_counter_offset(free_tensor_counter);
-    const unsigned int current_width = current_out_width * adci_tensor_get_i32(stride, 0);
-    const unsigned int current_height = current_out_height * adci_tensor_get_i32(stride, 1);
-    tensor_offset += current_width * free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 0)];
-    tensor_offset += current_height * free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
-    unsigned int output_offset = adci_tensor_get_counter_offset(free_output_counter);
-    output_offset += current_out_width * free_output_counter.precomputed_volumes[adci_tensor_get_i32(dims, 0)];
-    output_offset += current_out_height * free_output_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
-    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
-    void *output_data = output->data + output_offset * element_size;
-    adci_reset_value(output_data, output->dtype);
-    const unsigned int width_volume = free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 0)];
-    const unsigned int height_volume = free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
-    for(unsigned int i = 0; i < width; i++){
-        const unsigned int curr_inner_tensor_width_offset = i * width_volume;
-        for(unsigned int j = 0; j < height; j++){
-            const unsigned int curr_inner_tensor_height_offset = j * height_volume;
-            pool_op(tensor->data + (tensor_offset + curr_inner_tensor_width_offset + curr_inner_tensor_height_offset) * element_size, output_data, output_data);
-        }
-    }
-}
-
+typedef void (*single_op_template_fn_t)(const void *first, const void *second, void *output);
 #define IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(_TEMPLATE_FN) \
     _TEMPLATE_FN(float, float) \
     _TEMPLATE_FN(float, int32_t) \
@@ -223,6 +100,166 @@ static void SINGLE_RELU_FN_NAME(_ftype, _stype)(const void *first, const void *s
 }
 IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_RELU_OP_TEMPLATE_FN)
 INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_relu_op_template_fns, SINGLE_RELU_FN_NAME)
+
+/* CONV FUNCTIONS IMPLEMENTATION */
+#define SINGLE_CONV_FN_NAME(_ftype, _stype) single_conv_op_template_fn_ ## _ftype ## _ ## _stype
+#define SINGLE_CONV_OP_TEMPLATE_FN(_ftype, _stype)  \
+static void SINGLE_CONV_FN_NAME(_ftype, _stype)(const void *first, const void *second, void *output){ \
+    ((_ftype *)output)[0] += (_ftype)(((_ftype *)first)[0] * ((_stype *)second)[0]); \
+}
+IMPLEMENT_FUNCTIONS_FOR_OP_TEMPLATE(SINGLE_CONV_OP_TEMPLATE_FN)
+INIT_FUNCTION_LIST_FOR_OP_TEMPLATE(single_conv_op_template_fns, SINGLE_CONV_FN_NAME)
+
+static void adci_reset_value(void *data, enum adci_tensor_type type){
+    #define ADCI_RESET(_type) *((_type*)data) = (_type)0
+    switch (type){
+    case ADCI_F32: ADCI_RESET(float); break;
+    case ADCI_I32: ADCI_RESET(int32_t); break;
+    case ADCI_I8: ADCI_RESET(int8_t); break;
+    default:
+        ADCI_LOG(ADCI_ERROR, "RESET FOR TYPE %d, NOT IMPLEMENTED", type);
+    }
+}
+
+static void adci_compare_max(const void *data, void *maximum, enum adci_tensor_type type){
+    #define ADCI_CMP_MAX(_type) *((_type*)maximum) = (*((_type*)maximum) < *((_type*)data)) ? *((_type*)data) : *((_type*)maximum)
+    switch (type){
+    case ADCI_F32: ADCI_CMP_MAX(float); break;
+    case ADCI_I32: ADCI_CMP_MAX(int32_t); break;
+    case ADCI_I8: ADCI_CMP_MAX(int8_t); break;
+    default:
+        ADCI_LOG(ADCI_ERROR, "RESET FOR TYPE %d, NOT IMPLEMENTED", type);
+    }
+}
+
+static unsigned int adci_prepare_output_tensor(unsigned int *shape, unsigned int length, enum adci_tensor_type type, struct adci_tensor *tensor){
+    const unsigned int previous_size = adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype);
+    const unsigned int required_size = adci_tensor_element_count_ext(length, shape) * adci_tensor_dtype_size(type);
+    tensor->n_dimension = length;
+    tensor->dtype = type;
+    memcpy(tensor->shape, shape, length * sizeof(unsigned int));
+    if(tensor->data == NULL) tensor->data = ADCI_ALLOC(required_size);
+    /* TO REALLOCATE MEMORY ONLY IN THE CASE OF BUFFER NOT LARGE ENOUGH */
+    else if(required_size > previous_size) tensor->data = ADCI_REALLOC(tensor->data, required_size);
+    return required_size;
+}
+
+static void adci_check_tensor_broadcast(const struct adci_tensor *tensor, const struct adci_tensor *second){
+    const unsigned length = (tensor->n_dimension < second->n_dimension) ? tensor->n_dimension : second->n_dimension;
+    for(unsigned int i = 0; i < length; i++){
+        ADCI_ASSERT(
+            tensor->shape[tensor->n_dimension - i - 1] == 1 ||
+            second->shape[second->n_dimension - i - 1] == 1 ||
+            tensor->shape[tensor->n_dimension - i - 1] == second->shape[second->n_dimension - i - 1]
+        );
+    }
+}
+
+static void adci_generic_broadcast_op(struct adci_vector inputs, struct adci_tensor *output, single_op_template_fn_t op){
+    ADCI_ASSERT(inputs.length == 2);
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    struct adci_tensor *operand = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    adci_check_tensor_broadcast(tensor, operand);
+    /* BROADCASTING VALID */
+    struct adci_tensor temp = *tensor;
+    if(tensor == output) output->data = NULL;
+    adci_prepare_output_tensor(tensor->shape, tensor->n_dimension, tensor->dtype, output);
+    const unsigned int volume = adci_tensor_element_count(tensor);
+    const unsigned int operand_volume = adci_tensor_element_count(operand);
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    const unsigned int operand_element_size = adci_tensor_dtype_size(operand->dtype);
+    for(unsigned int i = 0; i < volume; i++)
+        op(tensor->data + i * element_size, operand->data + (i % operand_volume) * operand_element_size, output->data + i * element_size);
+    if(tensor == output) ADCI_FREE(temp.data);
+}
+
+static void adci_tensor_pad_fill_data(const struct adci_tensor *input, const struct adci_tensor *padding, struct adci_tensor *output, unsigned int dim, unsigned int in_offset, unsigned int ou_offset){
+    const unsigned int bsize = adci_tensor_dtype_size(input->dtype);
+    unsigned int ou_volume = adci_tensor_element_count_ext(output->n_dimension - dim - 1, output->shape + dim + 1); 
+    unsigned int in_volume = adci_tensor_element_count_ext(input->n_dimension - dim - 1, input->shape + dim + 1);
+    for(unsigned int i = 0; i < input->shape[dim]; i++){
+        const unsigned int curr_ou_offset = (i + ((int32_t *)padding->data)[dim * padding->shape[1]]) * ou_volume;
+        const unsigned int curr_in_offset = i * in_volume;
+        if(dim == input->n_dimension - 1){
+            const unsigned int fou_offset = (ou_offset + curr_ou_offset) * bsize;
+            const unsigned int fin_offset = (in_offset + curr_in_offset) * bsize;
+            memcpy((int8_t *)output->data + fou_offset, (int8_t *)input->data + fin_offset, bsize);
+        }else adci_tensor_pad_fill_data(input, padding, output, dim + 1, in_offset + curr_in_offset, ou_offset + curr_ou_offset);
+    }
+}
+
+static void adci_single_channel_conv(
+    struct adci_tensor *tensor, 
+    struct adci_tensor *filter, 
+    struct adci_tensor *stride, 
+    struct adci_tensor *dims,
+    struct adci_tensor *output,
+    unsigned int input_batch_index,
+    unsigned int filter_channel_index)
+    {
+    const unsigned int filter_dims[] = {1, 2, 3};
+    const unsigned int element_size = adci_tensor_dtype_size(output->dtype);
+    const unsigned int output_batch_volume = adci_tensor_element_count_ext(output->n_dimension - 1, output->shape + 1);
+    const unsigned int tensor_batch_volume = adci_tensor_element_count_ext(tensor->n_dimension - 1, tensor->shape + 1);
+    const unsigned int num_convolutions = output->shape[adci_tensor_get_i32(dims, 0)] * output->shape[adci_tensor_get_i32(dims, 1)]; 
+    const unsigned int filter_volume = adci_tensor_element_count_ext(filter->n_dimension - 1, filter->shape + 1);
+    struct adci_multi_dim_counter output_counter = adci_tensor_init_multidim_counter(output, dims->data, dims->shape[0]);
+    struct adci_multi_dim_counter tensor_counter = adci_tensor_init_multidim_counter(tensor, dims->data, dims->shape[0]);
+    single_op_template_fn_t conv_op = single_conv_op_template_fns[tensor->dtype * ADCI_NUM_SUPPORTED_TYPES + filter->dtype];
+    for(unsigned int i = 0; i < num_convolutions; i++){
+        const unsigned int curr_inner_offset = adci_tensor_get_counter_offset(output_counter);
+        const unsigned int current_offset = (curr_inner_offset + input_batch_index * output_batch_volume) * element_size;
+        adci_reset_value(output->data + current_offset, output->dtype);
+        const unsigned int curr_tensor_offset = input_batch_index * tensor_batch_volume;
+        struct adci_multi_dim_counter filter_counter = adci_tensor_init_multidim_counter(filter, filter_dims, sizeof(filter_dims) / sizeof(unsigned int));
+        for(unsigned int j = 0; j < filter_volume; j++){
+            /* COMPUTE OFFSET FOR FILTER COORDS ON INPUT TENSOR */
+            const unsigned int filter_offset = (filter_channel_index * filter_volume + adci_tensor_get_counter_offset(filter_counter)) * adci_tensor_dtype_size(filter->dtype);
+            unsigned int tensor_offset = curr_tensor_offset;
+            tensor_offset += output_counter.counter[1] * adci_tensor_get_i32(stride, 1) * tensor_counter.precomputed_volumes[tensor_counter.dim_indeces[1]];
+            tensor_offset += output_counter.counter[0] * adci_tensor_get_i32(stride, 0) * tensor_counter.precomputed_volumes[tensor_counter.dim_indeces[0]];
+            for(unsigned int k = 0; k < filter_counter.free_dims_count; k++) tensor_offset += filter_counter.counter[k] * tensor_counter.precomputed_volumes[filter_counter.dim_indeces[k]];
+            conv_op(tensor->data + tensor_offset * element_size, filter->data + filter_offset, output->data + current_offset);
+            adci_tensor_increase_counter(&filter_counter);
+        }
+        adci_tensor_increase_counter(&output_counter);
+    }
+}
+
+static void adci_compute_pool2d(
+    const struct adci_tensor *tensor, 
+    const struct adci_tensor *size,
+    const struct adci_tensor *stride,
+    const struct adci_tensor *dims,
+    struct adci_tensor *output,
+    const struct adci_multi_dim_counter free_tensor_counter,
+    const struct adci_multi_dim_counter free_output_counter,
+    unsigned int current_out_width, unsigned int current_out_height,
+    single_op_template_fn_t pool_op)
+    {
+    const unsigned int width = adci_tensor_get_i32(size, 0);
+    const unsigned int height = adci_tensor_get_i32(size, 1);
+    unsigned int tensor_offset = adci_tensor_get_counter_offset(free_tensor_counter);
+    const unsigned int current_width = current_out_width * adci_tensor_get_i32(stride, 0);
+    const unsigned int current_height = current_out_height * adci_tensor_get_i32(stride, 1);
+    tensor_offset += current_width * free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 0)];
+    tensor_offset += current_height * free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
+    unsigned int output_offset = adci_tensor_get_counter_offset(free_output_counter);
+    output_offset += current_out_width * free_output_counter.precomputed_volumes[adci_tensor_get_i32(dims, 0)];
+    output_offset += current_out_height * free_output_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    void *output_data = output->data + output_offset * element_size;
+    adci_reset_value(output_data, output->dtype);
+    const unsigned int width_volume = free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 0)];
+    const unsigned int height_volume = free_tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
+    for(unsigned int i = 0; i < width; i++){
+        const unsigned int curr_inner_tensor_width_offset = i * width_volume;
+        for(unsigned int j = 0; j < height; j++){
+            const unsigned int curr_inner_tensor_height_offset = j * height_volume;
+            pool_op(tensor->data + (tensor_offset + curr_inner_tensor_width_offset + curr_inner_tensor_height_offset) * element_size, output_data, output_data);
+        }
+    }
+}
 
 /* END PRIVATE FUNCTIONS */
 
@@ -555,6 +592,40 @@ void ADCI_EXIT_POINT adci_tensor_max_pool2D(struct adci_vector inputs, struct ad
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
+/* TODO, FOR NOW CONV2D EXPECTS TENSOR AND FILTER TO BE 4D TENSORS, MAYBE ADD SUPPORT FOR 3D TENSORS */
+void ADCI_EXIT_POINT adci_tensor_conv2D(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 4);
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
+    struct adci_tensor *filter = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    ADCI_ASSERT(tensor->n_dimension == filter->n_dimension);
+    /* WIDTH, HEIGHT ORDER */
+    struct adci_tensor *stride = *(struct adci_tensor **)adci_vector_get(&inputs, 2);
+    /* SPECIFIES THE 2 DIMENSIONS TO BE CONSIDERED FOR THE 2D MASK [WIDTH_DIM, HEIGHT_DIM]*/
+    struct adci_tensor *dims = *(struct adci_tensor **)adci_vector_get(&inputs, 3);
+    ADCI_ASSERT(stride->n_dimension == 1 && stride->shape[0] == 2);
+    ADCI_ASSERT(dims->n_dimension == 1 && dims->shape[0] == 2);
+    ADCI_ASSERT(stride->dtype == ADCI_I32 && dims->dtype == ADCI_I32);
+    /* COMPUTE OUTPUT SHAPE */
+    unsigned int shape[tensor->n_dimension];
+    memcpy(shape, tensor->shape, sizeof(shape));
+    const unsigned int channel_index = (adci_tensor_get_i32(dims, 0) == 1) ? tensor->n_dimension - 1 : 1;
+    for(unsigned int i = 0; i < dims->shape[0]; i++){
+        const unsigned int current_index = adci_tensor_get_i32(dims, i);
+        shape[current_index] = ((tensor->shape[current_index] - filter->shape[current_index]) / adci_tensor_get_i32(stride, i)) + 1;
+    }
+    shape[channel_index] = filter->shape[0];
+    struct adci_tensor temp = *tensor;
+    if(tensor == output) output->data = NULL;
+    adci_prepare_output_tensor(shape, temp.n_dimension, temp.dtype, output);
+    for(unsigned int i = 0; i < output->shape[0]; i++){
+        for(unsigned int channel = 0; channel < filter->shape[0]; channel++){
+            /* RUN CONV ON CURRENT 2D/3D VOLUME */
+            adci_single_channel_conv(&temp, filter, stride, dims, output, i, channel);
+        }
+    }
+    if(tensor == output) ADCI_FREE(temp.data);
+}
+
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
     switch (op){
     case ADCI_TENSOR_INPUT: return;
@@ -571,6 +642,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_CONCAT: return adci_tensor_concat(inputs, output);
     case ADCI_TENSOR_MUL: return adci_tensor_mul(inputs, output);
     case ADCI_TENSOR_MAX_POOL2D:  return adci_tensor_max_pool2D(inputs, output);
+    case ADCI_TENSOR_CONV2D: return adci_tensor_conv2D(inputs, output);
     default:
         ADCI_LOG(ADCI_ERROR, "OPERATION: %s NOT IMPLEMENTED YET", adci_tensor_op_str(op));
         ADCI_ASSERT(false);
