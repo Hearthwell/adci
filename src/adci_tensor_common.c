@@ -17,6 +17,21 @@ struct adci_multi_dim_counter adci_tensor_init_multidim_counter(const struct adc
     return counter;
 }
 
+struct adci_multi_dim_counter adci_tensor_alldim_counter_except(const struct adci_tensor *tensor, unsigned int excluded){
+    struct adci_multi_dim_counter counter = {
+        .tensor = tensor, 
+        .free_dims_count = tensor->n_dimension - 1,
+        .counter = {0}, 
+    };
+    unsigned int index = 0;
+    for(unsigned int i = 0; i < tensor->n_dimension; i++){
+        counter.precomputed_volumes[i] = adci_tensor_element_count_ext(tensor->n_dimension - i - 1, tensor->shape + i + 1);
+        if(i == excluded) continue;
+        counter.dim_indeces[index++] = i;
+    }
+    return counter;
+}
+
 void adci_tensor_increase_counter(struct adci_multi_dim_counter *counter){
     for(int i = (int)counter->free_dims_count - 1; i >= 0; i--){
         counter->counter[i]++;
