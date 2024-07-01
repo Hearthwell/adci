@@ -658,6 +658,42 @@ void ADCI_EXIT_POINT adci_tensor_transpose(struct adci_vector inputs, struct adc
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
+void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, struct adci_tensor *output){
+    struct adci_tensor *input = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
+    struct adci_tensor *weights = *(struct adci_tensor **)adci_vector_get(&inputs, 1); 
+    ADCI_ASSERT(input->n_dimension == 2 || input->n_dimension == 1);
+    ADCI_ASSERT(weights->n_dimension == 2);
+    /* MAKE SURE VECTOR/MATRIX MULTIPLICATION IS VALID */
+    ADCI_ASSERT(input->shape[input->n_dimension - 1] == weights->shape[1]);
+    /* COMPUTE OUTPUT SIZE */
+    unsigned int shape[2];
+    shape[0] = input->shape[0];
+    shape[1] = weights->shape[0];
+    struct adci_tensor temp = *input;
+    if(input == output) output->data = NULL;
+    adci_prepare_output_tensor(shape, sizeof(shape) / sizeof(unsigned int), temp.dtype, output);
+    const unsigned int element_size = adci_tensor_dtype_size(temp.dtype);
+    single_op_template_fn_t multiplier = single_mult_op_template_fns[temp.dtype * ADCI_NUM_SUPPORTED_TYPES + weights->dtype];
+    /* THE ELEMENTS TO BE ADDED ARE THE OUTPUT OF THE MULTIPLY FUNCTION WHICH WILL BE CASTED TO THE TYPE OF THE INPUT */
+    single_op_template_fn_t adder = single_add_op_template_fns[temp.dtype * ADCI_NUM_SUPPORTED_TYPES + temp.dtype];
+    for(unsigned int batch = 0; batch < temp.shape[0]; batch++){
+        for(unsigned int row = 0; row < weights->shape[0]; row++){
+            /* COMPUTE DOT PRODUCT FOR CURRENT WEIGHT LINE */
+            const unsigned int output_offset = row * element_size;
+            adci_reset_value(output->data + output_offset, temp.dtype);
+            int8_t temp_mult[element_size];
+            const unsigned int weights_outer_offset = row * weights->shape[1];
+            for(unsigned int col = 0; col < weights->shape[1]; col++){
+                const unsigned int vector_offset = col * element_size;
+                const unsigned int weights_offset = (weights_outer_offset + col) * element_size;
+                multiplier(temp.data + vector_offset, weights->data + weights_offset, temp_mult);
+                adder(output->data + output_offset, temp_mult, output->data + output_offset);
+            }
+        }
+    }
+    if(input == output) ADCI_FREE(temp.data);
+}
+
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
     switch (op){
     case ADCI_TENSOR_INPUT: return;
@@ -676,6 +712,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_MAX_POOL2D:  return adci_tensor_max_pool2D(inputs, output);
     case ADCI_TENSOR_CONV2D: return adci_tensor_conv2D(inputs, output);
     case ADCI_TENSOR_TRANSPOSE: return adci_tensor_transpose(inputs, output);
+    case ADCI_TENSOR_FULLY_CONNECTED: return adci_tensor_fully_connected(inputs, output);
     default:
         ADCI_LOG(ADCI_ERROR, "OPERATION: %s NOT IMPLEMENTED YET", adci_tensor_op_str(op));
         ADCI_ASSERT(false);

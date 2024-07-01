@@ -37,3 +37,5 @@ TEST(ADCI_TENSOR_COMMON_SUITE_NAME, adci_tensor_get_counter_offset){
     adci_tensor_free(tensor);
 }
 
+/* TODO, ADD TESTS FOR NEW GET_COUNTER_EXCLUDED FUNCTION */
+

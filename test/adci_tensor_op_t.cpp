@@ -739,6 +739,38 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_transpose){
     ADCI_FREE(output.data);
 }
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_fully_connected){
+    float values[][4] = {
+        {1.f, 2.f , 5.f , 6.f},
+        {0.f, 6.f , 10.f, 3.f},
+    };
+    float expected[] = { 14.f, 19.f };
+    adci_tensor *tensor = adci_tensor_init_2d(1, 4, ADCI_F32);
+    adci_tensor_alloc(tensor);
+    for(unsigned int i = 0; i < tensor->shape[1]; i++)
+        ((float *)tensor->data)[i] = 1.f;
+    adci_tensor *weights = adci_tensor_init_2d(2, 4, ADCI_F32);
+    adci_tensor_alloc_set(weights, values);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+
+    adci_vector inputs = adci_vector_init(sizeof(adci_tensor *));
+    adci_vector_add(&inputs, &tensor);
+    adci_vector_add(&inputs, &weights);
+
+    adci_tensor_fully_connected(inputs, &output);
+    EXPECT_EQ(output.n_dimension, 2);
+    EXPECT_EQ(output.shape[0], 1);
+    EXPECT_EQ(output.shape[1], 2);
+    EXPECT_EQ(output.dtype, tensor->dtype);
+    EXPECT_FLOAT_EQ(((float *)output.data)[0], expected[0]);
+    EXPECT_FLOAT_EQ(((float *)output.data)[1], expected[1]);
+    adci_vector_free(&inputs);
+    adci_tensor_free(tensor);
+    adci_tensor_free(weights);
+    ADCI_FREE(output.data);
+}
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_compute_op){
     /* TODO, IMPLEMENT */
 }

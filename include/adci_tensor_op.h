@@ -20,7 +20,6 @@ enum adci_tensor_op{
     ADCI_TENSOR_RELU,
     ADCI_TENSOR_CONV2D,
     ADCI_TENSOR_TRANSPOSE,
-
     ADCI_TENSOR_FULLY_CONNECTED,
 
     ADCI_TENSOR_BATCH_MATMUL,
@@ -44,6 +43,7 @@ void ADCI_EXIT_POINT adci_tensor_mul(struct adci_vector inputs, struct adci_tens
 void ADCI_EXIT_POINT adci_tensor_max_pool2D(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_conv2D(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_transpose(struct adci_vector inputs, struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output);
 
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op);
