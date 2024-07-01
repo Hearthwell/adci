@@ -15,7 +15,7 @@ struct adci_multi_dim_counter{
     unsigned int counter[ADCI_TENSOR_MAX_DIM];
 };
 
-struct adci_multi_dim_counter adci_tensor_init_multidim_counter(const struct adci_tensor *tensor, unsigned int *dims, unsigned int length);
+struct adci_multi_dim_counter adci_tensor_init_multidim_counter(const struct adci_tensor *tensor, const unsigned int *dims, unsigned int length);
 void adci_tensor_increase_counter(struct adci_multi_dim_counter *counter);
 unsigned int adci_tensor_get_counter_offset(struct adci_multi_dim_counter counter);
 
