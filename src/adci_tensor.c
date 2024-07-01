@@ -142,6 +142,13 @@ void adci_tensor_set_element(struct adci_tensor *tensor, const void *element, ..
     adci_tensor_set_element_helper(tensor, element, ptr);
 }
 
+void adci_tensor_fill(struct adci_tensor *tensor, const void *data){
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    const unsigned int volume = adci_tensor_element_count(tensor);
+    for(unsigned int i = 0; i < volume; i++)
+        memcpy(tensor->data + i * element_size, data, element_size);
+}
+
 void * adci_tensor_get_element(struct adci_tensor *tensor, ...){
     va_list ptr;
     va_start(ptr, tensor);

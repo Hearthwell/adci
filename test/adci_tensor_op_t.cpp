@@ -165,7 +165,6 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_pad_diff_output_second_dim){
     adci_tensor_set_i32(padding, 0, 0, 1);
     adci_tensor_set_i32(padding, 1, 1, 0);
     adci_tensor_set_i32(padding, 1, 1, 1);
-    /* SHOULD PAD BY ONE ON EACH SIDE OF FIRST DIM ONLY AND FILL WITH ZEROS */
     adci_tensor_alloc(first);
     for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
         ((float *)first->data)[i] = 1.f;
@@ -200,7 +199,6 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_pad_diff_output_multiple_dim){
     adci_tensor_set_i32(padding, 0, 0, 1);
     adci_tensor_set_i32(padding, 1, 1, 0);
     adci_tensor_set_i32(padding, 2, 1, 1);
-    /* SHOULD PAD BY ONE ON EACH SIDE OF FIRST DIM ONLY AND FILL WITH ZEROS */
     adci_tensor_alloc(first);
     for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
         ((float *)first->data)[i] = 1.f;

@@ -39,6 +39,7 @@ unsigned int adci_tensor_set(struct adci_tensor *tensor, const void *data);
 void adci_tensor_set_f32(struct adci_tensor *tensor, float element, ...);
 void adci_tensor_set_i32(struct adci_tensor *tensor, int32_t element, ...);
 void adci_tensor_set_element(struct adci_tensor *tensor, const void *element, ...);
+void adci_tensor_fill(struct adci_tensor *tensor, const void *data);
 
 void * adci_tensor_get_element(struct adci_tensor *tensor, ...);
 float   adci_tensor_get_f32(const struct adci_tensor *tensor, ...);

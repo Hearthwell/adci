@@ -79,3 +79,15 @@ TEST(TEST_SUITE_NAME, adci_tensor_get_i32){
     EXPECT_EQ(element, 11);
     adci_tensor_free(tensor);
 }
+
+TEST(TEST_SUITE_NAME, adci_tensor_fill){
+    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_I32);
+    adci_tensor_alloc(tensor);
+    for(unsigned int i = 0; i < 5 * 6; i++)
+        ((int32_t *)tensor->data)[i] = i;
+    int32_t value = 0;
+    adci_tensor_fill(tensor, &value);
+    for(unsigned int i = 0; i < 5 * 6; i++)
+        EXPECT_EQ(((int32_t *)tensor->data)[i], value);
+    adci_tensor_free(tensor);
+}
