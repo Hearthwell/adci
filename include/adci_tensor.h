@@ -52,5 +52,6 @@ unsigned int adci_tensor_element_count(struct adci_tensor *tensor);
 unsigned int adci_tensor_dtype_size(enum adci_tensor_type dtype);
 
 void adci_tensor_print(const struct adci_tensor *tensor);
+void adci_tensor_print_shape(const struct adci_tensor *tensor);
 
 #endif //ADCI_TENSOR_H

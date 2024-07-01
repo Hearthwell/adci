@@ -5,3 +5,7 @@ bench
 
 main
 tests
+
+*.o
+*.a
+*.so

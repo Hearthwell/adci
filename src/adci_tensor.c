@@ -193,3 +193,10 @@ unsigned int adci_tensor_dtype_size(enum adci_tensor_type dtype){
 void adci_tensor_print(const struct adci_tensor *tensor){
     adci_tensor_print_helper(tensor, 0, 0);
 }
+
+void adci_tensor_print_shape(const struct adci_tensor *tensor){
+    printf("[ ");
+    for(unsigned int i = 0; i < tensor->n_dimension; i++)
+        printf("%d, ", tensor->shape[i]);
+    printf("]\n");
+}
