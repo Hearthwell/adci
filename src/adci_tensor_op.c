@@ -387,6 +387,7 @@ void ADCI_EXIT_POINT adci_tensor_cast(struct adci_vector inputs, struct adci_ten
 }
 
 void ADCI_EXIT_POINT adci_tensor_softmax(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 2);
     struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
     struct adci_tensor *axis = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
     ADCI_ASSERT(axis->n_dimension == 1 && axis->shape[0] == 1);
@@ -653,6 +654,7 @@ void ADCI_EXIT_POINT adci_tensor_transpose(struct adci_vector inputs, struct adc
         memcpy(output->data + output_offset * element_size, temp.data + input_offset, element_size);
         adci_tensor_increase_counter(&input_counter);
     }
+    if(tensor == output) ADCI_FREE(temp.data);
 }
 
 void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, struct adci_tensor *output){
