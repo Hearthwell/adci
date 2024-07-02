@@ -8,9 +8,12 @@ unsigned int adci_tensor_element_count_ext(unsigned int n_dims, const unsigned i
     return size;
 }
 
+/* IF NULL GIVEN FOR DIMS, ALL DIMENSION ARE TO BE COUNTED */
 struct adci_multi_dim_counter adci_tensor_init_multidim_counter(const struct adci_tensor *tensor, const unsigned int *dims, unsigned int length){
     struct adci_multi_dim_counter counter = {.tensor = tensor, .free_dims_count = length};
-    memcpy(counter.dim_indeces, dims, sizeof(unsigned int) * length);
+    if(dims == NULL){
+        for(unsigned int i = 0; i < length; i++) counter.dim_indeces[i] = i;
+    }else memcpy(counter.dim_indeces, dims, sizeof(unsigned int) * length);
     memset(counter.counter, 0, sizeof(counter.counter));
     for(unsigned int i = 0; i < tensor->n_dimension; i++)
         counter.precomputed_volumes[i] = adci_tensor_element_count_ext(tensor->n_dimension - i - 1, tensor->shape + i + 1);

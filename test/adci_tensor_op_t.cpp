@@ -713,8 +713,8 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_transpose){
     };
     adci_tensor *tensor = adci_tensor_init(4, shape, ADCI_F32);
     adci_tensor_alloc_set(tensor, values);
-    adci_tensor *dims = adci_tensor_init_1d(2, ADCI_I32);
-    unsigned int dims_data[] = {1, 2};
+    adci_tensor *dims = adci_tensor_init_1d(4, ADCI_I32);
+    unsigned int dims_data[] = {0, 2, 1, 3};
     adci_tensor_alloc_set(dims, dims_data);
     adci_tensor output;
     memset(&output, 0, sizeof(adci_tensor));

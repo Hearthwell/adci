@@ -164,12 +164,12 @@ static void adci_generic_broadcast_op(struct adci_vector inputs, struct adci_ten
     struct adci_tensor temp = *tensor;
     if(tensor == output) output->data = NULL;
     adci_prepare_output_tensor(tensor->shape, tensor->n_dimension, tensor->dtype, output);
-    const unsigned int volume = adci_tensor_element_count(tensor);
+    const unsigned int volume = adci_tensor_element_count(&temp);
     const unsigned int operand_volume = adci_tensor_element_count(operand);
-    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    const unsigned int element_size = adci_tensor_dtype_size(temp.dtype);
     const unsigned int operand_element_size = adci_tensor_dtype_size(operand->dtype);
     for(unsigned int i = 0; i < volume; i++)
-        op(tensor->data + i * element_size, operand->data + (i % operand_volume) * operand_element_size, output->data + i * element_size);
+        op(temp.data + i * element_size, operand->data + (i % operand_volume) * operand_element_size, output->data + i * element_size);
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
@@ -295,7 +295,7 @@ void ADCI_EXIT_POINT adci_tensor_reshape(struct adci_vector inputs, struct adci_
 void ADCI_EXIT_POINT adci_tensor_pad(struct adci_vector inputs, struct adci_tensor *output){
     ADCI_ASSERT(inputs.length == 2);
     struct adci_tensor *element = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
-    struct adci_tensor *padding = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    const struct adci_tensor *padding = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
     ADCI_ASSERT(padding->dtype == ADCI_I32);
     ADCI_ASSERT(padding->n_dimension == 2);
     ADCI_ASSERT(element->n_dimension == padding->shape[0]);
@@ -630,32 +630,29 @@ void ADCI_EXIT_POINT adci_tensor_transpose(struct adci_vector inputs, struct adc
     ADCI_ASSERT(inputs.length == 2);
     struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
     struct adci_tensor *dims = *(struct adci_tensor **)adci_vector_get(&inputs, 1); 
-    ADCI_ASSERT(dims->n_dimension == 1 && dims->shape[0] == 2);
+    ADCI_ASSERT(dims->n_dimension == 1 && dims->shape[0] == tensor->n_dimension && dims->dtype == ADCI_I32);
     unsigned int shape[tensor->n_dimension];
-    memcpy(shape, tensor->shape, sizeof(shape));
-    shape[adci_tensor_get_i32(dims, 0)] = tensor->shape[adci_tensor_get_i32(dims, 1)];
-    shape[adci_tensor_get_i32(dims, 1)] = tensor->shape[adci_tensor_get_i32(dims, 0)];
+    for(unsigned int i = 0; i < tensor->n_dimension; i++)
+        shape[i] = tensor->shape[adci_tensor_get_i32(dims, i)];
     struct adci_tensor temp = *tensor;
     if(tensor == output) output->data = NULL;
-    adci_prepare_output_tensor(shape, tensor->n_dimension, tensor->dtype, output);
-    /* POPULATE OUTPUT DATA */
-    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype); 
-    const unsigned int focus_dim = adci_tensor_get_i32(dims, 0);
-    const unsigned int count = adci_tensor_element_count(output) / output->shape[focus_dim];
-    struct adci_multi_dim_counter output_counter = adci_tensor_alldim_counter_except(output, focus_dim);
-    struct adci_multi_dim_counter tensor_counter = adci_tensor_alldim_counter_except(tensor, adci_tensor_get_i32(dims, 1));
-    for(unsigned int i = 0; i < count; i++){
-        const unsigned int outer_out_offset = adci_tensor_get_counter_offset(output_counter);
-        const unsigned int outer_inp_offset = adci_tensor_get_counter_offset(tensor_counter);
-        for(unsigned int j = 0; j < output->shape[focus_dim]; j++){
-            const unsigned int curr_out_offser = outer_out_offset + j * output_counter.precomputed_volumes[focus_dim];
-            const unsigned int curr_inp_offser = outer_inp_offset + j * tensor_counter.precomputed_volumes[adci_tensor_get_i32(dims, 1)];
-            memcpy(output->data + curr_out_offser * element_size, tensor->data + curr_inp_offser * element_size, element_size);
-        }
-        adci_tensor_increase_counter(&output_counter);
-        adci_tensor_increase_counter(&tensor_counter);
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    const unsigned int volume = adci_prepare_output_tensor(shape, tensor->n_dimension, tensor->dtype, output) / element_size;
+    struct adci_multi_dim_counter input_counter = adci_tensor_init_multidim_counter(&temp, NULL, temp.n_dimension);
+    /* JUST TO GET THE PRECOMPUTED VOLUMES */
+    struct adci_multi_dim_counter output_counter = adci_tensor_init_multidim_counter(output, NULL, output->n_dimension);
+    unsigned int *counter[temp.n_dimension];
+    for(unsigned int i = 0; i < tensor->n_dimension; i++)
+        counter[i] = &input_counter.counter[adci_tensor_get_i32(dims, i)];
+    for(unsigned int i = 0; i < volume; i++){
+        const unsigned int input_offset = i * element_size;
+        /* GET OUTPUT OFFSET*/
+        unsigned int output_offset = 0;
+        for(unsigned int j = 0; j < temp.n_dimension; j++)
+            output_offset += *counter[j] * output_counter.precomputed_volumes[j];
+        memcpy(output->data + output_offset * element_size, temp.data + input_offset, element_size);
+        adci_tensor_increase_counter(&input_counter);
     }
-    if(tensor == output) ADCI_FREE(temp.data);
 }
 
 void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, struct adci_tensor *output){
