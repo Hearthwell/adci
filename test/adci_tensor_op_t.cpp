@@ -283,18 +283,24 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_cast){
     adci_tensor_alloc(first);
     for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
         ((int32_t *)first->data)[i] = i;
-    adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor *dtype = adci_tensor_init_1d(1, ADCI_I32);
+    adci_tensor_alloc(dtype);
+    adci_tensor_set_i32(dtype, ADCI_F32, 0);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
     adci_vector inputs = adci_vector_init(sizeof(adci_tensor*));
     adci_vector_add(&inputs, &first);
-    adci_tensor_cast(inputs, output);
+    adci_vector_add(&inputs, &dtype);
+    adci_tensor_cast(inputs, &output);
     for(unsigned int i = 0; i < shape[0] * shape[1]; i++){
         ASSERT_EQ(((int32_t *)first->data)[i], i);
-        ASSERT_FLOAT_EQ(((float *)output->data)[i], static_cast<float>(i));
-        if(i != 0){ ASSERT_NE(((int32_t *)first->data)[i], ((int32_t *)output->data)[i]); }
+        ASSERT_FLOAT_EQ(((float *)output.data)[i], static_cast<float>(i));
+        if(i != 0){ ASSERT_NE(((int32_t *)first->data)[i], ((int32_t *)output.data)[i]); }
     }
     adci_vector_free(&inputs);
+    adci_tensor_free(dtype);
     adci_tensor_free(first);
-    adci_tensor_free(output);
+    ADCI_FREE(output.data);
 }
 
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_cast_f32_f32){
@@ -303,14 +309,19 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_cast_f32_f32){
     adci_tensor_alloc(first);
     for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
         ((float *)first->data)[i] = static_cast<float>(i);
+    adci_tensor *dtype = adci_tensor_init_1d(1, ADCI_I32);
+    adci_tensor_alloc(dtype);
+    adci_tensor_set_i32(dtype, ADCI_F32, 0);
     adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
     adci_vector inputs = adci_vector_init(sizeof(adci_tensor*));
     adci_vector_add(&inputs, &first);
+    adci_vector_add(&inputs, &dtype);
     adci_tensor_cast(inputs, output);
     for(unsigned int i = 0; i < shape[0] * shape[1]; i++)
         ASSERT_FLOAT_EQ(((float *)output->data)[i], static_cast<float>(i));
     adci_vector_free(&inputs);
     adci_tensor_free(first);
+    adci_tensor_free(dtype);
     adci_tensor_free(output);
 }
 

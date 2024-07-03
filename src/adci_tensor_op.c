@@ -371,19 +371,21 @@ void ADCI_EXIT_POINT adci_tensor_relu(struct adci_vector inputs, struct adci_ten
 }
 
 void ADCI_EXIT_POINT adci_tensor_cast(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 2);
     struct adci_tensor *input = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
-    if(input == output){
-        ADCI_LOG(ADCI_WARNING, "SAME INPUT,OUTPUT TENSOR FOR CAST OPERATIONS");
-        return;
-    } 
+    struct adci_tensor *cast_dtype = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    ADCI_ASSERT(cast_dtype->dtype == ADCI_I32 && cast_dtype->n_dimension == 1 && cast_dtype->shape[0] == 1);
+    enum adci_tensor_type output_type = (enum adci_tensor_type)adci_tensor_get_i32(cast_dtype, 0);
     const unsigned int in_elem_size = adci_tensor_dtype_size(input->dtype);
-    const unsigned int ou_elem_size = adci_tensor_dtype_size(output->dtype);
-    /* TODO, CHANGE, SHOULD PROBABLY GET OUTPUT TYPE FROM AN INPUT TENSOR */
-    const unsigned int output_size = adci_prepare_output_tensor(input->shape, input->n_dimension, output->dtype, output);
+    const unsigned int ou_elem_size = adci_tensor_dtype_size(output_type);
+    struct adci_tensor temp = *input;
+    if(input == output) output->data = NULL;
+    const unsigned int output_size = adci_prepare_output_tensor(input->shape, input->n_dimension, output_type, output);
     unsigned int volume = output_size / ou_elem_size;
     const single_op_template_fn_t cast = single_cast_op_template_fns[input->dtype * ADCI_NUM_SUPPORTED_TYPES + output->dtype]; 
     for(unsigned int i = 0; i < volume; i++)
         cast(input->data + i * in_elem_size, NULL, output->data + i * ou_elem_size);
+    if(input == output) ADCI_FREE(temp.data);
 }
 
 void ADCI_EXIT_POINT adci_tensor_softmax(struct adci_vector inputs, struct adci_tensor *output){
