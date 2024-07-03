@@ -197,6 +197,15 @@ unsigned int adci_tensor_dtype_size(enum adci_tensor_type dtype){
     return 0;
 }
 
+const char * adci_tensor_dtype_str(enum adci_tensor_type dtype){
+    switch (dtype){
+    case ADCI_F32: return ADCI_TOKEN2STR(ADCI_F32);
+    case ADCI_I32: return ADCI_TOKEN2STR(ADCI_I32);
+    case ADCI_I8: return ADCI_TOKEN2STR(ADCI_I8);
+    default: return "NON SUPPORTED DTYPE";
+    }
+}
+
 void adci_tensor_print(const struct adci_tensor *tensor){
     adci_tensor_print_helper(tensor, 0, 0);
 }

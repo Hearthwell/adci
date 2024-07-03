@@ -52,6 +52,8 @@ bool adci_tensor_clean_view(struct adci_tensor *view);
 unsigned int adci_tensor_element_count(struct adci_tensor *tensor);
 unsigned int adci_tensor_dtype_size(enum adci_tensor_type dtype);
 
+const char * adci_tensor_dtype_str(enum adci_tensor_type dtype);
+
 void adci_tensor_print(const struct adci_tensor *tensor);
 void adci_tensor_print_shape(const struct adci_tensor *tensor);
 
