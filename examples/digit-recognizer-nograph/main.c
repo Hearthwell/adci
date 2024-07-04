@@ -5,6 +5,7 @@
 #include "adci_tensor.h"
 #include "adci_tensor_op.h"
 #include "adci_graph.h"
+#include "adci_image.h"
 
 void conv_layer(
     struct adci_tensor *input,
@@ -53,10 +54,15 @@ void conv_layer(
 int main(void){
     printf("ADCI IMPLEMENTATION FOR DIGIT RECOGNIZER \n");
 
-    unsigned int input_shape[] = {1, 28, 28, 1};
-    struct adci_tensor *input = adci_tensor_init(4, input_shape, ADCI_F32);
-    adci_tensor_alloc(input);
-    adci_tensor_fill(input, (float[]){0.f});
+    struct adci_tensor *input = adci_tensor_from_image("inputs/img_10.jpg");
+    struct adci_tensor *constant = adci_tensor_init_1d(1, ADCI_F32);
+    adci_tensor_alloc_set(constant, (float[]){1.f / 255.f}); 
+    struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
+    adci_vector_add(&inputs, &input);
+    adci_vector_add(&inputs, &constant);
+    adci_tensor_mul(inputs, input);
+    adci_vector_free(&inputs);
+    adci_tensor_free(constant);
 
     /* COMMON TENSORS */
     unsigned int padding_values[][2] = { {0, 0}, {1, 1}, {1, 1}, {0, 0} };
@@ -287,6 +293,17 @@ int main(void){
 
     /* OUTPUT READY */
     printf("COMPUTATION DONE FOR DIGIT RECOGNITION\n");
+    /* ARGMAX WOULD BE NICE AT THIS POINT */
+    float max = ((float *)output.data)[0];
+    unsigned int index = 0;
+    for(unsigned int i = 0; i < output.shape[1]; i++){
+        printf("Index: %d, probability: %f\n", i, ((float *)output.data)[i]);
+        if(((float *)output.data)[i] < max) continue; 
+        max = ((float *)output.data)[i];
+        index = i;
+    }
+
+    printf("DIGIT IN IMAGE IS: %d\n", index);
 
     /* CLEAN UP COMMON TENSORS */
     adci_tensor_free(input);
