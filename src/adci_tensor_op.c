@@ -542,13 +542,13 @@ void ADCI_EXIT_POINT adci_tensor_mul(struct adci_vector inputs, struct adci_tens
     struct adci_tensor temp = *tensor;
     if(tensor == output) output->data = NULL;
     adci_prepare_output_tensor(tensor->shape, tensor->n_dimension, tensor->dtype, output);
-    const unsigned int volume = adci_tensor_element_count(tensor);
+    const unsigned int volume = adci_tensor_element_count(&temp);
     const unsigned int mult_volume = adci_tensor_element_count(mult);
-    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    const unsigned int element_size = adci_tensor_dtype_size(temp.dtype);
     const unsigned int mult_element_size = adci_tensor_dtype_size(mult->dtype);
-    single_op_template_fn_t single_mult = single_mult_op_template_fns[tensor->dtype * ADCI_NUM_SUPPORTED_TYPES + mult->dtype];
+    single_op_template_fn_t single_mult = single_mult_op_template_fns[temp.dtype * ADCI_NUM_SUPPORTED_TYPES + mult->dtype];
     for(unsigned int i = 0; i < volume; i++)
-        single_mult(tensor->data + i * element_size, mult->data + (i % mult_volume) * mult_element_size, output->data + i * element_size);
+        single_mult(temp.data + i * element_size, mult->data + (i % mult_volume) * mult_element_size, output->data + i * element_size);
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
