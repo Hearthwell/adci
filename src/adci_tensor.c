@@ -87,25 +87,6 @@ struct adci_tensor * adci_tensor_init_vargs(unsigned int n_dims, enum adci_tenso
     return adci_tensor_init(n_dims, shape, type);
 }
 
-struct adci_tensor * adci_tensor_init_1d(unsigned int count, enum adci_tensor_type type){
-    struct adci_tensor *tensor = (struct adci_tensor *) ADCI_ALLOC(sizeof(struct adci_tensor));
-    tensor->n_dimension = 1;
-    tensor->data = NULL;
-    tensor->shape[0] = count;
-    tensor->dtype = type;
-    return tensor;
-}
-
-struct adci_tensor * adci_tensor_init_2d(unsigned int dim1, unsigned int dim2, enum adci_tensor_type type){
-    struct adci_tensor *tensor = (struct adci_tensor *) ADCI_ALLOC(sizeof(struct adci_tensor));
-    tensor->n_dimension = 2;
-    tensor->data = NULL;
-    tensor->shape[0] = dim1;
-    tensor->shape[1] = dim2;
-    tensor->dtype = type;
-    return tensor;
-}
-
 void adci_tensor_alloc(struct adci_tensor *tensor){
     tensor->data = ADCI_ALLOC(adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype));
 }

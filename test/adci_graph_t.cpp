@@ -19,9 +19,9 @@ TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_init){
 TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_add){
     unsigned int shape[] = {10, 10};
     struct adci_graph graph = adci_graph_init();
-    adci_tensor *a = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
-    adci_tensor *b = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
-    adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor *a = adci_tensor_init_vargs(2, ADCI_F32, shape[0], shape[1]);
+    adci_tensor *b = adci_tensor_init_vargs(2, ADCI_F32, shape[0], shape[1]);
+    adci_tensor *output = adci_tensor_init_vargs(2, ADCI_F32, shape[0], shape[1]);
     adci_tensor *inputs[] = {a, b};
     adci_vector tensors = adci_vector_from_array(inputs, 2, sizeof(adci_tensor *));
     adci_graph_op_add(&graph, tensors, output);
@@ -44,9 +44,9 @@ TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_add){
 TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_compute){
     unsigned int shape[] = {10, 10};
     struct adci_graph graph = adci_graph_init();
-    adci_tensor *a = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
-    adci_tensor *b = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
-    adci_tensor *output = adci_tensor_init_2d(shape[0], shape[1], ADCI_F32);
+    adci_tensor *a = adci_tensor_init_vargs(2, ADCI_F32, shape[0], shape[1]);
+    adci_tensor *b = adci_tensor_init_vargs(2, ADCI_F32, shape[0], shape[1]);
+    adci_tensor *output = adci_tensor_init_vargs(2, ADCI_F32, shape[0], shape[1]);
     adci_tensor_alloc(a);
     adci_tensor_alloc(b);
     adci_tensor_alloc(output);

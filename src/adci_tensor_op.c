@@ -595,24 +595,25 @@ void ADCI_EXIT_POINT adci_tensor_max_pool2D(struct adci_vector inputs, struct ad
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
-/* TODO, FOR NOW CONV2D EXPECTS TENSOR AND FILTER TO BE 4D TENSORS, MAYBE ADD SUPPORT FOR 3D TENSORS */
-void ADCI_EXIT_POINT adci_tensor_conv2D(struct adci_vector inputs, struct adci_tensor *output){
-    ADCI_ASSERT(inputs.length == 4);
-    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
-    struct adci_tensor *filter = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+/*@stride: WIDTH, HEIGHT ORDER */
+/*@dims: SPECIFIES THE INDECES OF DIMENSIONS TO BE CONSIDERED FOR THE 2D MASK [WIDTH_DIM, HEIGHT_DIM, CHANNEL_DIM] */
+
+void ADCI_EXIT_POINT adci_tensor_conv2D_args(
+    struct adci_tensor *tensor,
+    struct adci_tensor *filter,
+    struct adci_tensor *stride,
+    struct adci_tensor *dims,
+    struct adci_tensor *output)
+    {
     ADCI_ASSERT(tensor->n_dimension == filter->n_dimension);
-    /* WIDTH, HEIGHT ORDER */
-    struct adci_tensor *stride = *(struct adci_tensor **)adci_vector_get(&inputs, 2);
-    /* SPECIFIES THE 2 DIMENSIONS TO BE CONSIDERED FOR THE 2D MASK [WIDTH_DIM, HEIGHT_DIM]*/
-    struct adci_tensor *dims = *(struct adci_tensor **)adci_vector_get(&inputs, 3);
     ADCI_ASSERT(stride->n_dimension == 1 && stride->shape[0] == 2);
-    ADCI_ASSERT(dims->n_dimension == 1 && dims->shape[0] == 2);
+    ADCI_ASSERT(dims->n_dimension == 1 && dims->shape[0] == 3);
     ADCI_ASSERT(stride->dtype == ADCI_I32 && dims->dtype == ADCI_I32);
     /* COMPUTE OUTPUT SHAPE */
     unsigned int shape[tensor->n_dimension];
     memcpy(shape, tensor->shape, sizeof(shape));
-    const unsigned int channel_index = (adci_tensor_get_i32(dims, 0) == 1) ? tensor->n_dimension - 1 : 1;
-    for(unsigned int i = 0; i < dims->shape[0]; i++){
+    const unsigned int channel_index = adci_tensor_get_i32(dims, 2);
+    for(unsigned int i = 0; i < dims->shape[0] - 1; i++){
         const unsigned int current_index = adci_tensor_get_i32(dims, i);
         shape[current_index] = ((tensor->shape[current_index] - filter->shape[current_index]) / adci_tensor_get_i32(stride, i)) + 1;
     }
@@ -629,10 +630,18 @@ void ADCI_EXIT_POINT adci_tensor_conv2D(struct adci_vector inputs, struct adci_t
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
-void ADCI_EXIT_POINT adci_tensor_transpose(struct adci_vector inputs, struct adci_tensor *output){
-    ADCI_ASSERT(inputs.length == 2);
+
+/* FILTER TENSOR HAS TO BE IN THE SHAPE [OUT_CHANNEL, WIDTH, HEIGHT, IN_CHANNEL]*/
+void ADCI_EXIT_POINT adci_tensor_conv2D(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 4);
     struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
-    struct adci_tensor *dims = *(struct adci_tensor **)adci_vector_get(&inputs, 1); 
+    struct adci_tensor *filter = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+    struct adci_tensor *stride = *(struct adci_tensor **)adci_vector_get(&inputs, 2);
+    struct adci_tensor *dims = *(struct adci_tensor **)adci_vector_get(&inputs, 3);
+    adci_tensor_conv2D_args(tensor, filter, stride, dims, output);
+}
+
+void ADCI_EXIT_POINT adci_tensor_transpose_args(struct adci_tensor *tensor, struct adci_tensor *dims, struct adci_tensor *output){
     ADCI_ASSERT(dims->n_dimension == 1 && dims->shape[0] == tensor->n_dimension && dims->dtype == ADCI_I32);
     unsigned int shape[tensor->n_dimension];
     for(unsigned int i = 0; i < tensor->n_dimension; i++)
@@ -657,6 +666,13 @@ void ADCI_EXIT_POINT adci_tensor_transpose(struct adci_vector inputs, struct adc
         adci_tensor_increase_counter(&input_counter);
     }
     if(tensor == output) ADCI_FREE(temp.data);
+}
+
+void ADCI_EXIT_POINT adci_tensor_transpose(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 2);
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
+    struct adci_tensor *dims = *(struct adci_tensor **)adci_vector_get(&inputs, 1); 
+    adci_tensor_transpose_args(tensor, dims, output);
 }
 
 void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, struct adci_tensor *output){

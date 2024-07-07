@@ -17,7 +17,7 @@ TEST(TEST_SUITE_NAME, adci_tensor_init_vargs){
 }
 
 TEST(TEST_SUITE_NAME, adci_tensor_print){
-    adci_tensor *tensor = adci_tensor_init_2d(6, 5, ADCI_F32);
+    adci_tensor *tensor = adci_tensor_init_vargs(2, ADCI_F32, 6, 5);
     adci_tensor_alloc(tensor);
     for(unsigned int i = 0; i < 6 * 5; i++) ((float *)tensor->data)[i] = static_cast<float>(i);
     adci_tensor_print(tensor);
@@ -27,7 +27,7 @@ TEST(TEST_SUITE_NAME, adci_tensor_print){
 
 TEST(TEST_SUITE_NAME, adci_tensor_set_element_i32){
     int32_t value = 10;
-    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_I32);
+    adci_tensor *tensor = adci_tensor_init_vargs(2, ADCI_I32, 5, 6);
     adci_tensor_alloc(tensor);
     for(unsigned int i = 0; i < 5 * 6; i++)
         ((int32_t*)tensor->data)[i] = 0;
@@ -38,7 +38,7 @@ TEST(TEST_SUITE_NAME, adci_tensor_set_element_i32){
 
 TEST(TEST_SUITE_NAME, adci_tensor_set_element_f32){
     float value = 98.45;
-    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_F32);
+    adci_tensor *tensor = adci_tensor_init_vargs(2, ADCI_F32, 5, 6);
     adci_tensor_alloc(tensor);
     for(unsigned int i = 0; i < 5 * 6; i++)
         ((float*)tensor->data)[i] = 0.f;
@@ -50,7 +50,7 @@ TEST(TEST_SUITE_NAME, adci_tensor_set_element_f32){
 
 TEST(TEST_SUITE_NAME, adci_tensor_set_element_generic){
     float value = 98.45;
-    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_F32);
+    adci_tensor *tensor = adci_tensor_init_vargs(2, ADCI_F32, 5, 6);
     adci_tensor_alloc(tensor);
     for(unsigned int i = 0; i < 5 * 6; i++)
         ((float*)tensor->data)[i] = 0.f;
@@ -61,7 +61,7 @@ TEST(TEST_SUITE_NAME, adci_tensor_set_element_generic){
 }
 
 TEST(TEST_SUITE_NAME, adci_tensor_get_element_generic){
-    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_F32);
+    adci_tensor *tensor = adci_tensor_init_vargs(2, ADCI_F32, 5, 6);
     adci_tensor_alloc(tensor);
     for(unsigned int i = 0; i < 5 * 6; i++)
         ((float*)tensor->data)[i] = (float)i;
@@ -71,7 +71,7 @@ TEST(TEST_SUITE_NAME, adci_tensor_get_element_generic){
 }
 
 TEST(TEST_SUITE_NAME, adci_tensor_get_f32){
-    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_F32);
+    adci_tensor *tensor = adci_tensor_init_vargs(2, ADCI_F32, 5, 6);
     adci_tensor_alloc(tensor);
     for(unsigned int i = 0; i < 5 * 6; i++)
         ((float*)tensor->data)[i] = (float)i;
@@ -81,7 +81,7 @@ TEST(TEST_SUITE_NAME, adci_tensor_get_f32){
 }
 
 TEST(TEST_SUITE_NAME, adci_tensor_get_i32){
-    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_I32);
+    adci_tensor *tensor = adci_tensor_init_vargs(2, ADCI_I32, 5, 6);
     adci_tensor_alloc(tensor);
     for(unsigned int i = 0; i < 5 * 6; i++)
         ((int32_t *)tensor->data)[i] = i;
@@ -91,7 +91,7 @@ TEST(TEST_SUITE_NAME, adci_tensor_get_i32){
 }
 
 TEST(TEST_SUITE_NAME, adci_tensor_fill){
-    adci_tensor *tensor = adci_tensor_init_2d(5, 6, ADCI_I32);
+    adci_tensor *tensor = adci_tensor_init_vargs(2, ADCI_I32, 5, 6);
     adci_tensor_alloc(tensor);
     for(unsigned int i = 0; i < 5 * 6; i++)
         ((int32_t *)tensor->data)[i] = i;

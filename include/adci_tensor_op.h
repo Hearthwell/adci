@@ -27,7 +27,7 @@ enum adci_tensor_op{
     ADCI_TENSOR_TRANSPOSE_CONV,
 };
 
-/* SHOULD NOT BE USED DIRECTLY NORMALY */
+/* SHOULD BUILD COMPUTE GRAPH INSTEAD OF USING INDIVIDUAL TENSOR OPS FOR NN */
 void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_sub(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_reshape(struct adci_vector inputs, struct adci_tensor *output);
@@ -45,6 +45,15 @@ void ADCI_EXIT_POINT adci_tensor_conv2D(struct adci_vector inputs, struct adci_t
 void ADCI_EXIT_POINT adci_tensor_transpose(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output);
+
+/* EXTENDED ARGS VERSION OF PREVIOUS OPS */
+void ADCI_EXIT_POINT adci_tensor_conv2D_args(
+    struct adci_tensor *tensor,
+    struct adci_tensor *filter,
+    struct adci_tensor *stride,
+    struct adci_tensor *dims,
+    struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_transpose_args(struct adci_tensor *tensor, struct adci_tensor *dims, struct adci_tensor *output);
 
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op);
 const char * adci_tensor_op_str(enum adci_tensor_op op);
