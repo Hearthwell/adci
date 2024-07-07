@@ -17,7 +17,7 @@ static void adci_tensor_print_helper(const struct adci_tensor *input, unsigned i
     for(unsigned int i = 0; i < input->shape[dim]; i++){
         if(dim == input->n_dimension - 1){
             switch (input->dtype){
-            case ADCI_F32: printf("%4.2f, ", ((float *)input->data)[offset + i]);
+            case ADCI_F32: printf("%4.4f, ", ((float *)input->data)[offset + i]);
             break;
             case ADCI_I32: printf("%d, ", ((int32_t *)input->data)[offset + i]);
             break;
@@ -76,6 +76,15 @@ struct adci_tensor * adci_tensor_init(unsigned int n_dims, const unsigned int *s
         tensor->shape[i] = shape[i];
     tensor->dtype = type;
     return tensor;
+}
+
+struct adci_tensor * adci_tensor_init_vargs(unsigned int n_dims, enum adci_tensor_type type, ...){
+    va_list ptr;
+    va_start(ptr, type);
+    unsigned int shape[n_dims];
+    for(unsigned int i = 0; i < n_dims; i++) shape[i] = va_arg(ptr, unsigned int);
+    va_end(ptr);
+    return adci_tensor_init(n_dims, shape, type);
 }
 
 struct adci_tensor * adci_tensor_init_1d(unsigned int count, enum adci_tensor_type type){

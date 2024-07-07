@@ -6,6 +6,16 @@ extern "C"{
 
 #define TEST_SUITE_NAME ADCI_TENSOR
 
+TEST(TEST_SUITE_NAME, adci_tensor_init_vargs){
+    adci_tensor *tensor = adci_tensor_init_vargs(4, ADCI_I32, 4, 3, 2, 1);
+    EXPECT_EQ(tensor->n_dimension, 4);
+    EXPECT_EQ(tensor->shape[0], 4);
+    EXPECT_EQ(tensor->shape[1], 3);
+    EXPECT_EQ(tensor->shape[2], 2);
+    EXPECT_EQ(tensor->shape[3], 1);
+    adci_tensor_free(tensor);
+}
+
 TEST(TEST_SUITE_NAME, adci_tensor_print){
     adci_tensor *tensor = adci_tensor_init_2d(6, 5, ADCI_F32);
     adci_tensor_alloc(tensor);

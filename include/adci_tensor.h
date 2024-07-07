@@ -28,6 +28,7 @@ struct adci_tensor{
 };
 
 struct adci_tensor * adci_tensor_init(unsigned int n_dims, const unsigned int *shape, enum adci_tensor_type type);
+struct adci_tensor * adci_tensor_init_vargs(unsigned int n_dims, enum adci_tensor_type type, ...);
 struct adci_tensor * adci_tensor_init_1d(unsigned int count, enum adci_tensor_type type);
 struct adci_tensor * adci_tensor_init_2d(unsigned int dim1, unsigned int dim2, enum adci_tensor_type type);
 void adci_tensor_alloc(struct adci_tensor *tensor);
