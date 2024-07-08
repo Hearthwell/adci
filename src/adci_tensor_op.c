@@ -194,31 +194,35 @@ static void adci_single_channel_conv(
     struct adci_tensor *stride, 
     struct adci_tensor *dims,
     struct adci_tensor *output,
-    unsigned int input_batch_index,
+    unsigned int batch_index,
+    unsigned int batch_field_index,
     unsigned int filter_channel_index)
     {
-    const unsigned int filter_dims[] = {1, 2, 3};
     const unsigned int element_size = adci_tensor_dtype_size(output->dtype);
-    const unsigned int output_batch_volume = adci_tensor_element_count_ext(output->n_dimension - 1, output->shape + 1);
-    const unsigned int tensor_batch_volume = adci_tensor_element_count_ext(tensor->n_dimension - 1, tensor->shape + 1);
+    const unsigned int output_batch_volume = adci_tensor_element_count_ext(output->n_dimension - batch_field_index - 1, output->shape + batch_field_index + 1);
+    const unsigned int tensor_batch_volume = adci_tensor_element_count_ext(tensor->n_dimension - batch_field_index - 1, tensor->shape + batch_field_index + 1);
     const unsigned int num_convolutions = output->shape[adci_tensor_get_i32(dims, 0)] * output->shape[adci_tensor_get_i32(dims, 1)]; 
     const unsigned int filter_volume = adci_tensor_element_count_ext(filter->n_dimension - 1, filter->shape + 1);
-    struct adci_multi_dim_counter output_counter = adci_tensor_init_multidim_counter(output, dims->data, dims->shape[0]);
+    const unsigned int output_outer_offset = batch_index * output_batch_volume;
+    /* WE ONLY WANT A COUNTER FOR THE WIDTH AND HEIGHT (THE NUMBER OF CONVOLUTIONS TO PERFORM) */
+    struct adci_multi_dim_counter output_counter = adci_tensor_init_multidim_counter(output, dims->data, dims->shape[0] - 1);
+    /* ONLY USED FOR PRECOMPUTED VOLUMES */
     struct adci_multi_dim_counter tensor_counter = adci_tensor_init_multidim_counter(tensor, dims->data, dims->shape[0]);
     single_op_template_fn_t conv_op = single_conv_op_template_fns[tensor->dtype * ADCI_NUM_SUPPORTED_TYPES + filter->dtype];
     for(unsigned int i = 0; i < num_convolutions; i++){
-        const unsigned int curr_inner_offset = adci_tensor_get_counter_offset(output_counter);
-        const unsigned int current_offset = (curr_inner_offset + input_batch_index * output_batch_volume) * element_size;
+        const unsigned int output_inner_offset = adci_tensor_get_counter_offset(output_counter) + filter_channel_index * output_counter.precomputed_volumes[adci_tensor_get_i32(dims, 2)];
+        const unsigned int current_offset = (output_inner_offset + output_outer_offset) * element_size;
         adci_reset_value(output->data + current_offset, output->dtype);
-        const unsigned int curr_tensor_offset = input_batch_index * tensor_batch_volume;
-        struct adci_multi_dim_counter filter_counter = adci_tensor_init_multidim_counter(filter, filter_dims, sizeof(filter_dims) / sizeof(unsigned int));
+        const unsigned int curr_tensor_offset = batch_index * tensor_batch_volume;
+        /* FILTER IS IN FORMAT OUT_CHANNEL, WIDTH, HEIGHT, IN_CHANNEL */
+        struct adci_multi_dim_counter filter_counter = adci_tensor_alldim_counter_except(filter, 0);
         for(unsigned int j = 0; j < filter_volume; j++){
             /* COMPUTE OFFSET FOR FILTER COORDS ON INPUT TENSOR */
             const unsigned int filter_offset = (filter_channel_index * filter_volume + adci_tensor_get_counter_offset(filter_counter)) * adci_tensor_dtype_size(filter->dtype);
             unsigned int tensor_offset = curr_tensor_offset;
             tensor_offset += output_counter.counter[1] * adci_tensor_get_i32(stride, 1) * tensor_counter.precomputed_volumes[tensor_counter.dim_indeces[1]];
             tensor_offset += output_counter.counter[0] * adci_tensor_get_i32(stride, 0) * tensor_counter.precomputed_volumes[tensor_counter.dim_indeces[0]];
-            for(unsigned int k = 0; k < filter_counter.free_dims_count; k++) tensor_offset += filter_counter.counter[k] * tensor_counter.precomputed_volumes[filter_counter.dim_indeces[k]];
+            for(unsigned int k = 0; k < filter_counter.free_dims_count; k++) tensor_offset += filter_counter.counter[k] * tensor_counter.precomputed_volumes[tensor_counter.dim_indeces[k]];
             conv_op(tensor->data + tensor_offset * element_size, filter->data + filter_offset, output->data + current_offset);
             adci_tensor_increase_counter(&filter_counter);
         }
@@ -611,25 +615,30 @@ void ADCI_EXIT_POINT adci_tensor_conv2D_args(
     ADCI_ASSERT(stride->dtype == ADCI_I32 && dims->dtype == ADCI_I32);
     /* COMPUTE OUTPUT SHAPE */
     unsigned int shape[tensor->n_dimension];
-    memcpy(shape, tensor->shape, sizeof(shape));
+    memset(shape, 0, sizeof(shape));
     const unsigned int channel_index = adci_tensor_get_i32(dims, 2);
     for(unsigned int i = 0; i < dims->shape[0] - 1; i++){
         const unsigned int current_index = adci_tensor_get_i32(dims, i);
         shape[current_index] = ((tensor->shape[current_index] - filter->shape[current_index]) / adci_tensor_get_i32(stride, i)) + 1;
     }
     shape[channel_index] = filter->shape[0];
+    /* GET BATCH DIM */
+    unsigned int batch_dim = 0;
+    for(;batch_dim < tensor->n_dimension; batch_dim++)
+        if(shape[batch_dim] == 0) break;
+    shape[batch_dim] = tensor->shape[batch_dim];
     struct adci_tensor temp = *tensor;
     if(tensor == output) output->data = NULL;
     adci_prepare_output_tensor(shape, temp.n_dimension, temp.dtype, output);
-    for(unsigned int i = 0; i < output->shape[0]; i++){
+    adci_tensor_print_shape(filter);
+    for(unsigned int i = 0; i < output->shape[batch_dim]; i++){
         for(unsigned int channel = 0; channel < filter->shape[0]; channel++){
             /* RUN CONV ON CURRENT 2D/3D VOLUME */
-            adci_single_channel_conv(&temp, filter, stride, dims, output, i, channel);
+            adci_single_channel_conv(&temp, filter, stride, dims, output, i, batch_dim, channel);
         }
     }
     if(tensor == output) ADCI_FREE(temp.data);
 }
-
 
 /* FILTER TENSOR HAS TO BE IN THE SHAPE [OUT_CHANNEL, WIDTH, HEIGHT, IN_CHANNEL]*/
 void ADCI_EXIT_POINT adci_tensor_conv2D(struct adci_vector inputs, struct adci_tensor *output){

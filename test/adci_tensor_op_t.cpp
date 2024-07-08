@@ -673,7 +673,8 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_conv2D_BCWH){
     };
     adci_tensor *tensor = adci_tensor_init(4, shape, ADCI_F32);
     adci_tensor_alloc_set(tensor, values);
-    unsigned int filter_shape[] = {1, 1, 2, 2};
+    /* FILTER SHAPE DOES NOT CHANGE DEPENDING ON THE INPUT SHAPE, ALWAYS [O_CHANNEL, WIDTH, HEIGHT, I_CHANNEL] */
+    unsigned int filter_shape[] = {1, 2, 2, 1};
     adci_tensor *filter   = adci_tensor_init(4, filter_shape, ADCI_F32);
     adci_tensor_alloc(filter);
     for(unsigned int i = 0; i < 4; i++) ((float *)filter->data)[i] = 1.0f;
@@ -780,7 +781,6 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_fully_connected){
     ADCI_FREE(output.data);
 }
 
-#if 0
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_conv2d_tflite_comp){
     const float input_data[][5][5][1] = {{
         {{2}, {1}, {2}, {0}, {1}},
@@ -812,19 +812,46 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_conv2d_tflite_comp){
     adci_tensor *tensor = adci_tensor_init_vargs(4, ADCI_F32, 1, 5, 5, 1);
     adci_tensor_alloc_set(tensor, input_data);
     adci_tensor *filter = adci_tensor_init_vargs(4, ADCI_F32, 2, 2, 1, 2);
+    adci_tensor_alloc_set(filter, filter_data);
     
     /* PUT THE FILTER IN THE RIGHT FORMAT */
-    unsigned int transpose_data[] = {3, 0, 1, 2};
+    unsigned int transpose_data[] = {3, 1, 0, 2};
     adci_tensor *transpose_dims = adci_tensor_init_vargs(1, ADCI_I32, 4);
     adci_tensor_alloc_set(transpose_dims, transpose_data);
     adci_tensor_transpose_args(filter, transpose_dims, filter);
 
-    //adci_tensor_conv2D_args(tensor, filter,  tensor);
+    adci_tensor *stride = adci_tensor_init_vargs(1, ADCI_I32, 2);
+    adci_tensor_alloc(stride);
+    adci_tensor_set_i32(stride, 1, 0);
+    adci_tensor_set_i32(stride, 1, 1);
 
+    adci_tensor *dims = adci_tensor_init_vargs(1, ADCI_I32, 3);
+    adci_tensor_alloc(dims);
+    adci_tensor_set_i32(dims, 2, 0);
+    adci_tensor_set_i32(dims, 1, 1);
+    adci_tensor_set_i32(dims, 3, 2);
+
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+
+    adci_tensor_conv2D_args(tensor, filter, stride, dims, &output);
+    EXPECT_EQ(output.n_dimension, 4);
+    EXPECT_EQ(output.shape[0], 1);
+    EXPECT_EQ(output.shape[1], 4);
+    EXPECT_EQ(output.shape[2], 4);
+    EXPECT_EQ(output.shape[3], 2);
+
+    adci_tensor_print(&output);
+
+    for(unsigned int i = 0; i < 32; i++)
+        EXPECT_FLOAT_EQ(((float*)expected_data)[i], ((float *)output.data)[i]);
+
+    ADCI_FREE(output.data);
     adci_tensor_free(transpose_dims);
+    adci_tensor_free(stride);
+    adci_tensor_free(filter);
     adci_tensor_free(tensor);
 }
-#endif
 
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_compute_op){
     /* TODO, IMPLEMENT */
