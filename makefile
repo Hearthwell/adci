@@ -1,25 +1,28 @@
 SRC_DIR:=src
 OUT_DIR:=out
-EXAMPLES_DIR:=examples
 PROJECT_NAME:=adci
 
 SRC_FILES:=$(wildcard $(SRC_DIR)/*.c)
 SRC_OBJ:=$(SRC_FILES:$(SRC_DIR)/%.c=$(OUT_DIR)/%.c.o)
+SRC_OBJ_REL:=$(SRC_FILES:$(SRC_DIR)/%.c=$(OUT_DIR)/%.c.rel.o)
 
 CC:=gcc
-# TODO, REMOVE DEBUG INFO / ADD RELEASE PRESET, BUILD
 C_DEBUG_FLAGS:=-DADCI_BUILD_DEBUG -g
-C_FLAGS:=-Wall -Wextra -Iinclude -Isrc $(C_DEBUG_FLAGS)
+C_RELEASE_FLAGS:=-O3
+C_COMMON_FLAGS:=-Wall -Wextra -Iinclude -Isrc
 C_LIBS:=-lm
 
-$(OUT_DIR)/%.c.o:$(SRC_DIR)/%.c
-	$(CC) $(C_FLAGS) -c -o $@ $<
+$(OUT_DIR)/%.c.rel.o:$(SRC_DIR)/%.c
+	$(CC) $(C_COMMON_FLAGS) $(C_RELEASE_FLAGS) -c -o $@ $<
 
-$(OUT_DIR)/%.c.o:$(EXAMPLES_DIR)/%.c
-	$(CC) $(C_FLAGS) -c -o $@ $<
+$(OUT_DIR)/%.c.o:$(SRC_DIR)/%.c
+	$(CC) $(C_COMMON_FLAGS) $(C_FLAGS) -c -o $@ $<
+
+release_lib: $(SRC_OBJ_REL) 
+	ar rcs lib$(PROJECT_NAME).a $^
 
 lib: $(SRC_OBJ)
-	ar rcs lib$(PROJECT_NAME).a $^
+	ar rcs lib$(PROJECT_NAME)dbg.a $^
 
 TEST_DIR:=test
 TEST_FILES:=$(wildcard $(TEST_DIR)/*.cpp)

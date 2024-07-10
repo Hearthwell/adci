@@ -1,4 +1,4 @@
-C_FLAGS:=-Wall -Wextra -g
+C_FLAGS:=-Wall -Wextra -O3
 
 %.o: %.c
 	gcc $(C_FLAGS) -I../../include -c $< -o $@
