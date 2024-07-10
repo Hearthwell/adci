@@ -3,6 +3,7 @@
 
 #include "stb_image.h"
 
+/* RETURNS TENSOR IN FORMAT BWHC */
 struct adci_tensor * adci_tensor_from_image(const char *path){
     /* BATCH VALUE SET TO 1 */
     int shape[4] = {1, 0, 0, 0};
