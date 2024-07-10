@@ -47,6 +47,11 @@ void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, stru
 void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output);
 
 /* EXTENDED ARGS VERSION OF PREVIOUS OPS */
+void ADCI_EXIT_POINT adci_tensor_reduce_max_args(
+    struct adci_tensor *tensor,
+    struct adci_tensor *axis, 
+    struct adci_tensor *keepdims, 
+    struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_conv2D_args(
     struct adci_tensor *tensor,
     struct adci_tensor *filter,
