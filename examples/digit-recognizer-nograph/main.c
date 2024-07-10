@@ -27,9 +27,9 @@ void conv_layer(
 
     /* CONV LAYER */
     {
-        struct adci_tensor *stride = adci_tensor_init_1d(2, ADCI_I32);
+        struct adci_tensor *stride = adci_tensor_init_vargs(1, ADCI_I32, 2);
         adci_tensor_alloc_set(stride, stride_data);
-        struct adci_tensor *dims = adci_tensor_init_1d(2, ADCI_I32);
+        struct adci_tensor *dims = adci_tensor_init_vargs(1, ADCI_I32, 3);
         adci_tensor_alloc_set(dims, dims_data);
         struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
         adci_vector_add(&inputs, &output);
@@ -54,8 +54,8 @@ void conv_layer(
 int main(void){
     printf("ADCI IMPLEMENTATION FOR DIGIT RECOGNIZER \n");
 
-    struct adci_tensor *input = adci_tensor_from_image("inputs/img_10.jpg");
-    struct adci_tensor *constant = adci_tensor_init_1d(1, ADCI_F32);
+    struct adci_tensor *input = adci_tensor_from_image("inputs/img_1.jpg");
+    struct adci_tensor *constant = adci_tensor_init_vargs(1, ADCI_F32, 1);
     adci_tensor_alloc_set(constant, (float[]){1.f / 255.f}); 
     struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
     adci_vector_add(&inputs, &input);
@@ -66,7 +66,7 @@ int main(void){
 
     /* COMMON TENSORS */
     unsigned int padding_values[][2] = { {0, 0}, {1, 1}, {1, 1}, {0, 0} };
-    struct adci_tensor *padding = adci_tensor_init_2d(4, 2, ADCI_I32);
+    struct adci_tensor *padding = adci_tensor_init_vargs(2, ADCI_I32, 4, 2);
     adci_tensor_alloc_set(padding, padding_values);
 
     /* MAIN OUTPUT TENSOR */
@@ -78,9 +78,9 @@ int main(void){
         unsigned int filter_shape[] = {32, 3, 3, 1};
         struct adci_tensor *filter = adci_tensor_init(4, filter_shape, ADCI_F32);
         adci_tensor_alloc_set(filter, conv2D_filter);
-        struct adci_tensor *bias = adci_tensor_init_1d(filter_shape[0], ADCI_F32);
+        struct adci_tensor *bias = adci_tensor_init_vargs(1, ADCI_F32, filter_shape[0]);
         adci_tensor_alloc_set(bias, conv2D_bias);
-        conv_layer(input, padding, filter, (unsigned int[]){1, 1}, (unsigned int[]){1, 2}, bias, &output);
+        conv_layer(input, padding, filter, (unsigned int[]){1, 1}, (unsigned int[]){1, 2, 3}, bias, &output);
     }
 
     adci_tensor_print_shape(&output);
@@ -97,7 +97,7 @@ int main(void){
 
     /* MULT LAYER */
     {
-        struct adci_tensor *operand = adci_tensor_init_1d(32, ADCI_F32);
+        struct adci_tensor *operand = adci_tensor_init_vargs(1, ADCI_F32, 32);
         adci_tensor_alloc_set(operand, mult_weights);
         struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
         adci_vector_add(&inputs, (struct adci_tensor*[]){&output});
@@ -111,7 +111,7 @@ int main(void){
 
     /* ADD LAYER */
     {
-        struct adci_tensor *operand = adci_tensor_init_1d(32, ADCI_F32);
+        struct adci_tensor *operand = adci_tensor_init_vargs(1, ADCI_F32, 32);
         adci_tensor_alloc_set(operand, add_weights);
         struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
         adci_vector_add(&inputs, (struct adci_tensor*[]){&output});
@@ -128,20 +128,20 @@ int main(void){
         unsigned int filter_shape[] = {64, 3, 3, 32};
         struct adci_tensor *filter = adci_tensor_init(4, filter_shape, ADCI_F32);
         adci_tensor_alloc_set(filter, conv2D_filter_1);
-        struct adci_tensor *bias = adci_tensor_init_1d(filter_shape[0], ADCI_F32);
+        struct adci_tensor *bias = adci_tensor_init_vargs(1, ADCI_F32, filter_shape[0]);
         adci_tensor_alloc_set(bias, conv2D_bias_1);
-        conv_layer(&output, padding, filter, (unsigned int[]){1, 1}, (unsigned int[]){1, 2}, bias, &output);
+        conv_layer(&output, padding, filter, (unsigned int[]){1, 1}, (unsigned int[]){1, 2, 3}, bias, &output);
     }
 
     adci_tensor_print_shape(&output);
 
     /* MAX_POOL2D_0 */
     {
-        struct adci_tensor *size = adci_tensor_init_1d(2, ADCI_I32);
+        struct adci_tensor *size = adci_tensor_init_vargs(1, ADCI_I32, 2);
         adci_tensor_alloc_set(size, (unsigned int[]){2, 2});
-        struct adci_tensor *stride = adci_tensor_init_1d(2, ADCI_I32);
+        struct adci_tensor *stride = adci_tensor_init_vargs(1, ADCI_I32, 2);
         adci_tensor_alloc_set(stride, (unsigned int[]){2, 2});
-        struct adci_tensor *dims = adci_tensor_init_1d(2, ADCI_I32);
+        struct adci_tensor *dims = adci_tensor_init_vargs(1, ADCI_I32, 2);
         adci_tensor_alloc_set(dims, (unsigned int[]){1, 2});
         struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
         adci_vector_add(&inputs, (struct adci_tensor*[]){&output});
@@ -162,20 +162,20 @@ int main(void){
         unsigned int filter_shape[] = {128, 3, 3, 64};
         struct adci_tensor *filter = adci_tensor_init(4, filter_shape, ADCI_F32);
         adci_tensor_alloc_set(filter, conv2D_filter_2);
-        struct adci_tensor *bias = adci_tensor_init_1d(filter_shape[0], ADCI_F32);
+        struct adci_tensor *bias = adci_tensor_init_vargs(1, ADCI_F32, filter_shape[0]);
         adci_tensor_alloc_set(bias, conv2D_bias_2);
-        conv_layer(&output, padding, filter, (unsigned int[]){1, 1}, (unsigned int[]){1, 2}, bias, &output);
+        conv_layer(&output, padding, filter, (unsigned int[]){1, 1}, (unsigned int[]){1, 2, 3}, bias, &output);
     }
 
     adci_tensor_print_shape(&output);
 
     /* MAX_POOL2D_1 */
     {
-        struct adci_tensor *size = adci_tensor_init_1d(2, ADCI_I32);
+        struct adci_tensor *size = adci_tensor_init_vargs(1, ADCI_I32, 2);
         adci_tensor_alloc_set(size, (unsigned int[]){2, 2});
-        struct adci_tensor *stride = adci_tensor_init_1d(2, ADCI_I32);
+        struct adci_tensor *stride = adci_tensor_init_vargs(1, ADCI_I32, 2);
         adci_tensor_alloc_set(stride, (unsigned int[]){2, 2});
-        struct adci_tensor *dims = adci_tensor_init_1d(2, ADCI_I32);
+        struct adci_tensor *dims = adci_tensor_init_vargs(1, ADCI_I32, 2);
         adci_tensor_alloc_set(dims, (unsigned int[]){1, 2});
         struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
         adci_vector_add(&inputs, (struct adci_tensor*[]){&output});
@@ -193,7 +193,7 @@ int main(void){
 
     /* TRANSPOSE LAYER */
     {
-        struct adci_tensor *dims = adci_tensor_init_1d(4, ADCI_I32);
+        struct adci_tensor *dims = adci_tensor_init_vargs(1, ADCI_I32, 4);
         adci_tensor_alloc_set(dims, (unsigned int[]){0, 3, 1, 2});
         struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
         adci_vector_add(&inputs, (struct adci_tensor*[]){&output});
@@ -207,7 +207,7 @@ int main(void){
 
     /* RESHAPE LAYER */
     {
-        struct adci_tensor *shape = adci_tensor_init_1d(2, ADCI_I32);
+        struct adci_tensor *shape = adci_tensor_init_vargs(1, ADCI_I32, 2);
         adci_tensor_alloc_set(shape, (unsigned int[]){1, 6272});
         struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
         adci_vector_add(&inputs, (struct adci_tensor*[]){&output});
@@ -232,8 +232,8 @@ int main(void){
         inputs.length = 0;
 
         /* BIAS */
-        struct adci_tensor *bias = adci_tensor_init_1d(shape[0], ADCI_F32);
-        adci_tensor_alloc_set(weights, fullyconnected_bias);
+        struct adci_tensor *bias = adci_tensor_init_vargs(1, ADCI_F32, shape[0]);
+        adci_tensor_alloc_set(bias, fullyconnected_bias);
         adci_vector_add(&inputs, (struct adci_tensor*[]){&output});
         adci_vector_add(&inputs, &bias);
         adci_tensor_add(inputs, &output);
@@ -266,7 +266,7 @@ int main(void){
         inputs.length = 0;    
 
         /* BIAS */
-        struct adci_tensor *bias = adci_tensor_init_1d(shape[0], ADCI_F32);
+        struct adci_tensor *bias = adci_tensor_init_vargs(1, ADCI_F32, shape[0]);
         adci_tensor_alloc_set(bias, fullyconnected_bias_1);
         adci_vector_add(&inputs, (struct adci_tensor*[]){&output});
         adci_vector_add(&inputs, &bias);
@@ -279,7 +279,7 @@ int main(void){
 
     /* SOFTMAX LAYER */
     {
-        struct adci_tensor *dims = adci_tensor_init_1d(1, ADCI_I32);
+        struct adci_tensor *dims = adci_tensor_init_vargs(1, ADCI_I32, 1);
         adci_tensor_alloc_set(dims, (unsigned int[]){1});
         struct adci_vector inputs = adci_vector_init(sizeof(struct adci_tensor *));
         adci_vector_add(&inputs, (struct adci_tensor*[]){&output});
