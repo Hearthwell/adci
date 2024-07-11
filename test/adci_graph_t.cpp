@@ -24,7 +24,7 @@ TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_add){
     adci_tensor *output = adci_tensor_init_vargs(2, ADCI_F32, shape[0], shape[1]);
     adci_tensor *inputs[] = {a, b};
     adci_vector tensors = adci_vector_from_array(inputs, 2, sizeof(adci_tensor *));
-    adci_graph_op_add(&graph, tensors, output);
+    adci_graph_add_node(&graph, tensors, output, ADCI_TENSOR_ADD);
     adci_vector_free(&tensors);
     EXPECT_EQ(graph.inputs.length, 2);
     EXPECT_EQ(graph.leafs.length, 3);
@@ -56,7 +56,7 @@ TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_compute){
     }
     adci_tensor *inputs[] = {a, b};
     adci_vector tensors = adci_vector_from_array(inputs, 2, sizeof(adci_tensor *));
-    adci_graph_op_add(&graph, tensors, output);
+    adci_graph_add_node(&graph, tensors, output, ADCI_TENSOR_ADD);
     adci_vector_free(&tensors);
     adci_vector outputs = adci_graph_compute(&graph);
     EXPECT_EQ(outputs.length, 1);

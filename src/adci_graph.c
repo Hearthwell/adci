@@ -23,37 +23,6 @@ static struct adci_node * adci_graph_add_input_node(struct adci_graph *graph, st
     return node;
 }
 
-static void adci_graph_add_node(struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output, enum adci_tensor_op op){
-    struct adci_node *node = ADCI_ALLOC(sizeof(struct adci_node));
-    adci_vector_add(&gf->nodes, &node);
-    node->op = op;
-    node->inputs = adci_vector_init(sizeof(struct adci_node *));
-    node->next = adci_vector_init(sizeof(struct adci_node *));
-    /* MAKE SURE ALL INPUTS ARE LEAFS OR ADD NEW INPUTS */
-    for(unsigned int i = 0; i < tensors.length; i++){
-        struct adci_tensor *current = *(struct adci_tensor **)adci_vector_get(&tensors, i);
-        /* IF TENSOR ALREADY EXISTS, IT WONT BE ADDED */
-        adci_set_add(&gf->tensors, &current);
-        struct adci_node *current_node = adci_graph_check_leaf(gf, current);
-        if(current_node){
-            /* ADD CURRENT NODE TO NEXT LIST */
-            adci_vector_add(&current_node->next, &node);
-            adci_vector_add(&node->inputs, &current_node); 
-            continue;
-        }
-        /* TENSOR NOT FOUND IN LEAFS, LOG AND ADD TENSOR TO HEAD (GRAPH INPUTS) */
-        ADCI_LOG(ADCI_INFO, "Input tensor not a leaf, check inputs. Added as a graph input");
-        struct adci_node *input = adci_graph_add_input_node(gf, current);
-        adci_vector_add(&input->next, &node);
-        adci_vector_add(&node->inputs, &input); 
-        adci_vector_add(&gf->inputs, &input);
-        adci_vector_add(&gf->leafs, &input);
-    }
-    node->output = output;
-    adci_set_add(&gf->tensors, &output);
-    adci_vector_add(&gf->leafs, &node);
-}
-
 static bool adci_exec_node(struct adci_node *node){
     if(node->op == ADCI_TENSOR_INPUT || node->computed) return true;
     for(unsigned int i = 0; i < node->inputs.length; i++){
@@ -120,21 +89,35 @@ struct adci_string * adci_graph_str(const struct adci_graph *gf){
     return NULL;
 }
 
-struct adci_tensor * adci_graph_op_add(struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output){
-    adci_graph_add_node(gf, tensors, output, ADCI_TENSOR_ADD);
-    return output; 
-}
-
-struct adci_tensor * adci_graph_op_sub(struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output){
-    adci_graph_add_node(gf, tensors, output, ADCI_TENSOR_SUB);
-    return output; 
-}
-
-struct adci_tensor * adci_graph_op_copy(struct adci_graph *gf, struct adci_tensor *tensor, struct adci_tensor *output){
-    struct adci_vector tensors = adci_vector_init(sizeof(struct adci_tensor *));
-    adci_vector_add(&tensors, tensor);
-    adci_graph_add_node(gf, tensors, output, ADCI_TENSOR_COPY);
-    adci_vector_free(&tensors);
+struct adci_tensor * adci_graph_add_node(struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output, enum adci_tensor_op op){
+    struct adci_node *node = ADCI_ALLOC(sizeof(struct adci_node));
+    adci_vector_add(&gf->nodes, &node);
+    node->op = op;
+    node->inputs = adci_vector_init(sizeof(struct adci_node *));
+    node->next = adci_vector_init(sizeof(struct adci_node *));
+    /* MAKE SURE ALL INPUTS ARE LEAFS OR ADD NEW INPUTS */
+    for(unsigned int i = 0; i < tensors.length; i++){
+        struct adci_tensor *current = *(struct adci_tensor **)adci_vector_get(&tensors, i);
+        /* IF TENSOR ALREADY EXISTS, IT WONT BE ADDED */
+        adci_set_add(&gf->tensors, &current);
+        struct adci_node *current_node = adci_graph_check_leaf(gf, current);
+        if(current_node){
+            /* ADD CURRENT NODE TO NEXT LIST */
+            adci_vector_add(&current_node->next, &node);
+            adci_vector_add(&node->inputs, &current_node); 
+            continue;
+        }
+        /* TENSOR NOT FOUND IN LEAFS, LOG AND ADD TENSOR TO HEAD (GRAPH INPUTS) */
+        ADCI_LOG(ADCI_INFO, "Input tensor not a leaf, check inputs. Added as a graph input");
+        struct adci_node *input = adci_graph_add_input_node(gf, current);
+        adci_vector_add(&input->next, &node);
+        adci_vector_add(&node->inputs, &input); 
+        adci_vector_add(&gf->inputs, &input);
+        adci_vector_add(&gf->leafs, &input);
+    }
+    node->output = output;
+    adci_set_add(&gf->tensors, &output);
+    adci_vector_add(&gf->leafs, &node);
     return output;
 }
 

@@ -27,14 +27,10 @@ void adci_graph_free(struct adci_graph *gf);
 
 struct adci_string * adci_graph_str(const struct adci_graph *gf);
 
-/* TENSORS OWNERSHIP IS TRANSFERED, DONT DELETE TENSORS ANYMORE OR VECTOR */
-struct adci_tensor * adci_graph_op_add (struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output);
-struct adci_tensor * adci_graph_op_sub (struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output);
-struct adci_tensor * adci_graph_op_copy(struct adci_graph *gf, struct adci_tensor *tensor, struct adci_tensor *output);
+/* GENERIC GRAPH ADD NODE, INPUTS HAS TO BE IN FORM vector<struct adci_tensor *> */
+struct adci_tensor * adci_graph_add_node(struct adci_graph *gf, struct adci_vector tensors, struct adci_tensor *output, enum adci_tensor_op op);
 
-/* TODO, IMPLEMENT WHEN WE HAVE A WAY TO SAVE ENTIRE GRAPH INFO IN A FILE */
-//bool adci_graph_allocate_tensors(struct adci_graph *gf);
-//bool adci_graph_deallocate_tensors(struct adci_graph *gf);
+/* TENSORS OWNERSHIP IS TRANSFERED, DONT DELETE TENSORS ANYMORE OR VECTOR */
 
 /* RETURN vector<struct adci_tensor *> */
 struct adci_vector adci_graph_compute(struct adci_graph *gf);
