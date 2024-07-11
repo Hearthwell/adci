@@ -28,7 +28,7 @@ TEST_DIR:=test
 TEST_FILES:=$(wildcard $(TEST_DIR)/*.cpp)
 TEST_OBJ:=$(TEST_FILES:$(TEST_DIR)/%.cpp=$(OUT_DIR)/%.cpp.o)
 $(OUT_DIR)/%.cpp.o:$(TEST_DIR)/%.cpp
-	g++ $(C_FLAGS) -c -o $@ $<
+	g++ $(C_DEBUG_FLAGS) $(C_COMMON_FLAGS) -c -o $@ $<
 tests: $(SRC_OBJ) $(TEST_OBJ) 
 	g++ $^ -o $@ -lgtest
 
