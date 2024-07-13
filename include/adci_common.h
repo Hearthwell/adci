@@ -85,4 +85,6 @@ bool adci_set_has(struct adci_set set, const void *element);
 struct adci_set_iterator adci_set_get_iterator(struct adci_set *set);
 void * adci_set_get_next(struct adci_set_iterator *iterator); 
 
+void adci_set_print(struct adci_set set, void (*printer)(void *data));
+
 #endif //ADCI_COMMON_H

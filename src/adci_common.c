@@ -98,9 +98,11 @@ static void adci_set_copy_data(struct adci_set *previous, struct adci_set *set);
 static bool adci_set_add_node(struct adci_set *set, struct adci_set_node *current){
     unsigned int index = set->hasher(set, current->data) % set->capacity;
     struct adci_set_node *node = set->data[index];
+    struct adci_set_node *previous = NULL;
     unsigned int depth = 0;
-    while(node && node->next != NULL && depth < SET_COLLISION_TRESHOLD){
+    while(node && depth < SET_COLLISION_TRESHOLD){
         if(memcmp(node->data, current->data, set->bsize) == 0) return false;
+        previous = node;
         node = node->next;
         depth++;
     }
@@ -113,8 +115,8 @@ static bool adci_set_add_node(struct adci_set *set, struct adci_set_node *curren
         ADCI_FREE(previous.data);
         return adci_set_add_node(set, current);
     }
-    if(!node) set->data[index] = current;
-    else node->next = current;
+    if(!previous) set->data[index] = current;
+    else previous->next = current;
     set->length++;
     return true;
 }
@@ -212,4 +214,13 @@ void * adci_set_get_next(struct adci_set_iterator *iterator){
     struct adci_set_node *current =  iterator->current;
     iterator->current = iterator->current->next;
     return current->data;
+}
+
+void adci_set_print(struct adci_set set, void (*printer)(void *data)){
+    struct adci_set_iterator iter = adci_set_get_iterator(&set);
+    void *element = adci_set_get_next(&iter);
+    while(element){
+        printer(element);
+        element = adci_set_get_next(&iter);
+    }
 }
