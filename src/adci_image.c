@@ -1,13 +1,17 @@
-#include "external/stb_image.h"
 #include "adci_tensor_op.h"
+#include "adci_logging.h"
 
-#include "stb_image.h"
+#include "external/stb_image.h"
 
 /* RETURNS TENSOR IN FORMAT BWHC */
 struct adci_tensor * adci_tensor_from_image(const char *path){
     /* BATCH VALUE SET TO 1 */
     int shape[4] = {1, 0, 0, 0};
     unsigned char *data = stbi_load(path, shape + 1, shape + 2, shape + 3, 0);
+    if(data == NULL){
+        ADCI_LOG(ADCI_ERROR, "COULD NOT OPEN IMAGE: %s", path);
+        return NULL;
+    }
     struct adci_tensor *tensor = adci_tensor_init(sizeof(shape) / sizeof(unsigned int), (unsigned int *)shape, ADCI_F32);
     adci_tensor_alloc(tensor);
     const unsigned int element_count = adci_tensor_element_count(tensor);
