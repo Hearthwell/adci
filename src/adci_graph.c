@@ -140,6 +140,16 @@ struct adci_node * adci_graph_op_input(struct adci_graph *gf, struct adci_tensor
     return node;
 }
 
+struct adci_node * adci_graph_op_pad(struct adci_graph *gf, struct adci_node *node, uint32_t padding[][2]){
+    struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
+    compute_node->op = ADCI_TENSOR_PAD;
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
+    struct adci_tensor *padding_tensor = adci_tensor_init_vargs(2, ADCI_I32, node->output->n_dimension, 2);    
+    adci_tensor_alloc_set(padding_tensor, padding);
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_tensor(padding_tensor));
+    return compute_node;
+}
+
 struct adci_node * adci_graph_op_add(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input operand){
     struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
     compute_node->op = ADCI_TENSOR_ADD;

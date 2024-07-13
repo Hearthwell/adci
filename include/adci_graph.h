@@ -51,6 +51,8 @@ struct adci_tensor * adci_graph_add_node(struct adci_graph *gf, struct adci_vect
 /* AT LEAST ONE OF THE INPUTS HAVE TO BE A NODE, OTHERWISE GENERATED NODE WONT BE INTEGRATED INTO COMPUTE GRAPH */
 /* TENSORS OWNERSHIP IS TRANSFERED, DONT DELETE TENSORS ANYMORE */
 struct adci_node * adci_graph_op_input(struct adci_graph *gf, struct adci_tensor *input);
+/* FIRST DIM OF PADDING MUST MATCH WITH tensor.n_dimension */
+struct adci_node * adci_graph_op_pad(struct adci_graph *gf, struct adci_node *node, uint32_t padding[][2]);
 struct adci_node * adci_graph_op_add(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input operand);
 struct adci_node * adci_graph_op_sub(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input operand);
 
