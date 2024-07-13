@@ -36,7 +36,6 @@ void ADCI_EXIT_POINT adci_tensor_prelu(struct adci_vector inputs, struct adci_te
 void ADCI_EXIT_POINT adci_tensor_relu(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_cast(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_softmax(struct adci_vector inputs, struct adci_tensor *output);
-/* @adci_tensor_reduce_max: inputs => [ tensor, axis, keepdims (bool) ] */
 void ADCI_EXIT_POINT adci_tensor_reduce_max(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_concat(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_mul(struct adci_vector inputs, struct adci_tensor *output);
@@ -58,7 +57,10 @@ void ADCI_EXIT_POINT adci_tensor_conv2D_args(
     struct adci_tensor *stride,
     struct adci_tensor *dims,
     struct adci_tensor *output);
-void ADCI_EXIT_POINT adci_tensor_transpose_args(struct adci_tensor *tensor, struct adci_tensor *dims, struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_transpose_args(
+    struct adci_tensor *tensor, 
+    struct adci_tensor *dims, 
+    struct adci_tensor *output);
 
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op);
 const char * adci_tensor_op_str(enum adci_tensor_op op);
