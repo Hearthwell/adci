@@ -16,7 +16,7 @@ TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_init){
     adci_graph_free(&graph);
 }
 
-TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_add){
+TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_add_node){
     unsigned int shape[] = {10, 10};
     struct adci_graph graph = adci_graph_init();
     adci_tensor *a = adci_tensor_init_vargs(2, ADCI_F32, shape[0], shape[1]);
@@ -66,4 +66,46 @@ TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_compute){
     }
     adci_vector_free(&outputs);
     adci_graph_free(&graph);
+}
+
+TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_add){
+    struct adci_graph graph = adci_graph_init();
+    adci_tensor *first = adci_tensor_init_vargs(2, ADCI_F32, 4, 4);
+    adci_tensor_alloc(first);
+    float value = 1.f;
+    adci_tensor_fill(first, &value);
+    adci_tensor *second = adci_tensor_init_vargs(2, ADCI_F32, 1, 4);
+    adci_tensor_alloc(second);
+    adci_tensor_fill(second, &value);
+    adci_node *node = adci_graph_op_input(&graph, first);
+    adci_graph_op_add(&graph, node, adci_graph_input_tensor(second));
+    EXPECT_EQ(graph.inputs.length, 1);
+    EXPECT_EQ(graph.leafs.length, 1);
+    adci_graph_free(&graph);
+}
+
+TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_add_compute){
+    struct adci_graph graph = adci_graph_init();
+    adci_tensor *first = adci_tensor_init_vargs(2, ADCI_F32, 4, 4);
+    adci_tensor_alloc(first);
+    float value = 1.f;
+    adci_tensor_fill(first, &value);
+    adci_tensor *second = adci_tensor_init_vargs(2, ADCI_F32, 1, 4);
+    adci_tensor_alloc(second);
+    adci_tensor_fill(second, &value);
+    adci_node *node = adci_graph_op_input(&graph, first);
+    adci_graph_op_add(&graph, node, adci_graph_input_tensor(second));
+    adci_vector outputs = adci_graph_compute(&graph);
+    EXPECT_EQ(outputs.length, 1);
+    adci_tensor *output = *((adci_tensor **)adci_vector_get(&outputs, 0));
+    EXPECT_EQ(output->shape[0], 4);
+    EXPECT_EQ(output->shape[1], 4);
+    for(unsigned int i = 0; i < 16; i++)
+        EXPECT_EQ(((float *)output->data)[i], 2.f);
+    adci_vector_free(&outputs);
+    adci_graph_free(&graph);
+}
+
+TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_compute_GENERIC_API){
+    /* TODO, IMPLEMENT */
 }

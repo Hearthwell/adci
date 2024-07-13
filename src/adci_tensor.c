@@ -8,11 +8,13 @@
 /* PRIVATE FUNCTIONS */
 
 static void adci_tensor_print_helper(const struct adci_tensor *input, unsigned int dim, unsigned int offset){
+    ADCI_ASSERT(dim < ADCI_TENSOR_MAX_DIM);
     /* TAB PREFIX */
     for(unsigned int i = 0; i < dim; i++) printf("\t");
     printf("[\n");
-    if(dim == input->n_dimension - 1) 
+    if(dim == input->n_dimension - 1){
         for(unsigned int i = 0; i < dim + 1; i++) printf("\t");
+    }
     const unsigned int volume = adci_tensor_element_count_ext(input->n_dimension - dim - 1, input->shape + dim + 1);
     for(unsigned int i = 0; i < input->shape[dim]; i++){
         if(dim == input->n_dimension - 1){
@@ -97,7 +99,7 @@ void adci_tensor_alloc_set(struct adci_tensor *tensor, const void *data){
 }
 
 void adci_tensor_free(struct adci_tensor *tensor){
-    ADCI_FREE(tensor->data);
+    if(tensor->data) ADCI_FREE(tensor->data);
     tensor->data = NULL;
     ADCI_FREE(tensor);
 }
