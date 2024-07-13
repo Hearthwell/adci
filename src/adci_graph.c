@@ -143,7 +143,7 @@ struct adci_node * adci_graph_op_input(struct adci_graph *gf, struct adci_tensor
 struct adci_node * adci_graph_op_add(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input operand){
     struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
     compute_node->op = ADCI_TENSOR_ADD;
-    adci_graph_handle_node_input(gf, compute_node, adci_graph_input_node(node));
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
     adci_graph_handle_node_input(gf, compute_node, operand);
     return compute_node;
 }
@@ -151,16 +151,16 @@ struct adci_node * adci_graph_op_add(struct adci_graph *gf, struct adci_node *no
 struct adci_node * adci_graph_op_sub(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input operand){
     struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
     compute_node->op = ADCI_TENSOR_SUB;
-    adci_graph_handle_node_input(gf, compute_node, adci_graph_input_node(node));
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
     adci_graph_handle_node_input(gf, compute_node, operand);
     return compute_node;
 }
 
-struct adci_graph_input adci_graph_input_tensor(struct adci_tensor *tensor){
+struct adci_graph_input adci_graph_op_input_tensor(struct adci_tensor *tensor){
     return (struct adci_graph_input){.type = ADCI_INPUT_TENSOR, .input = {.tensor = tensor}};
 }
 
-struct adci_graph_input adci_graph_input_node(struct adci_node *node){
+struct adci_graph_input adci_graph_op_input_node(struct adci_node *node){
     return (struct adci_graph_input){.type = ADCI_INPUT_NODE, .input = {.node = node}};
 }
 
