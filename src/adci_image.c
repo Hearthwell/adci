@@ -1,4 +1,4 @@
-#include "adci_image.h"
+#include "external/stb_image.h"
 #include "adci_tensor_op.h"
 
 #include "stb_image.h"
