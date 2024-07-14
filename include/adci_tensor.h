@@ -20,7 +20,7 @@ enum adci_tensor_type{
 /* DIMESION ALWAYS STARTS AT INDEX 0, SO IN CASE OF TWO DIMS, WE GET [N, M, 0, 0] */
 struct adci_tensor{
     unsigned int n_dimension;
-    unsigned int shape[ADCI_TENSOR_MAX_DIM];
+    uint32_t shape[ADCI_TENSOR_MAX_DIM];
     enum adci_tensor_type dtype;
     /* TODO, ADD SUPPORT FOR NAME */
     struct adci_string *name;
