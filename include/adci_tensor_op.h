@@ -46,6 +46,13 @@ void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, stru
 void ADCI_EXIT_POINT adci_tensor_copy(struct adci_tensor *input, struct adci_tensor *output);
 
 /* EXTENDED ARGS VERSION OF PREVIOUS OPS */
+void ADCI_EXIT_POINT adci_tensor_relu_args(
+    struct adci_tensor *tensor, 
+    struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_prelu_args(
+    struct adci_tensor *element,
+    struct adci_tensor *parameters, 
+    struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_reduce_max_args(
     struct adci_tensor *tensor,
     struct adci_tensor *axis, 
@@ -63,5 +70,7 @@ void ADCI_EXIT_POINT adci_tensor_transpose_args(
     struct adci_tensor *output);
 
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op);
+void ADCI_EXIT_POINT adci_tensor_compute_op_shape(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op);
+
 const char * adci_tensor_op_str(enum adci_tensor_op op);
 #endif //ADCI_TENSOR_OP_H
