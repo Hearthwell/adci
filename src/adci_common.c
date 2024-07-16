@@ -42,7 +42,7 @@ struct adci_vector adci_vector_from_array(void *elements, unsigned int count, un
 bool adci_vector_add(struct adci_vector *vector, const void *element){
     if(vector->length == vector->capacity){
         vector->capacity *= 2;
-        vector->data = ADCI_REALLOC(vector->data, vector->capacity);
+        vector->data = ADCI_REALLOC(vector->data, vector->capacity * vector->bsize);
     }
     memcpy((uint8_t*)vector->data + vector->length * vector->bsize, element, vector->bsize);
     vector->length++;
@@ -109,7 +109,9 @@ static bool adci_set_add_node(struct adci_set *set, struct adci_set_node *curren
     if(depth >= SET_COLLISION_TRESHOLD){
         struct adci_set previous = *set;
         set->capacity *= 2;
-        set->data = ADCI_ALLOC(set->capacity * sizeof(struct adci_set_node *));
+        const unsigned int buffer_size = set->capacity * sizeof(struct adci_set_node *);
+        set->data = ADCI_ALLOC(buffer_size);
+        memset(set->data, 0, buffer_size);
         set->length = 0;
         adci_set_copy_data(&previous, set);
         ADCI_FREE(previous.data);

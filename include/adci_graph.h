@@ -53,8 +53,19 @@ struct adci_tensor * adci_graph_add_node(struct adci_graph *gf, struct adci_vect
 struct adci_node * adci_graph_op_input(struct adci_graph *gf, struct adci_tensor *input);
 /* FIRST DIM OF PADDING MUST MATCH WITH tensor.n_dimension */
 struct adci_node * adci_graph_op_pad(struct adci_graph *gf, struct adci_node *node, uint32_t padding[][2]);
+struct adci_node * adci_graph_op_conv2D(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input filter, uint32_t stride[2], uint32_t dims[3]);
+struct adci_node * adci_graph_op_max_pool2D(struct adci_graph *gf, struct adci_node *node, uint32_t size[2], uint32_t stride[2], uint32_t dims[2]);
+struct adci_node * adci_graph_op_relu(struct adci_graph *gf, struct adci_node *node);
+struct adci_node * adci_graph_op_mul(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input operand);
 struct adci_node * adci_graph_op_add(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input operand);
 struct adci_node * adci_graph_op_sub(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input operand);
+struct adci_node * adci_graph_op_transpose(struct adci_graph *gf, struct adci_node *node, uint32_t dims[]);
+struct adci_node * adci_graph_op_reshape(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input shape);
+struct adci_node * adci_graph_op_fully_connected(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input weight);
+struct adci_node * adci_graph_op_softmax(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input dims);
+
+/* TODO, IMPLEMENT */
+//struct adci_node * adci_graph_op_print(struct adci_graph *gf, struct adci_node *node);
 
 struct adci_graph_input adci_graph_op_input_tensor(struct adci_tensor *tensor);
 struct adci_graph_input adci_graph_op_input_node(struct adci_node *node);

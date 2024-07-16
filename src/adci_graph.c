@@ -15,6 +15,7 @@ static struct adci_node * adci_graph_check_leaf(const struct adci_graph *gf, con
 
 static struct adci_node * adci_graph_init_node(struct adci_graph *graph, struct adci_tensor *output){
     struct adci_node *node = ADCI_ALLOC(sizeof(struct adci_node));
+    memset(node, 0, sizeof(struct adci_node));
     node->parents = adci_vector_init(sizeof(struct adci_node *));
     node->next = adci_vector_init(sizeof(struct adci_node *));
     node->inputs = adci_vector_init(sizeof(struct adci_tensor *));
@@ -40,6 +41,7 @@ static void adci_graph_handle_node_input(
         adci_vector_add(&node->parents, &current.input.node);
         tensor = current.input.node->output;
         /* REMOVE NODE FROM LEAFS */
+        /* TODO, MAYBE FIND MORE EFFICIENT WAY TO REMOVE */
         adci_vector_remove(&graph->leafs, &current.input.node);
     }else adci_set_add(&graph->tensors, &current.input.tensor);
     adci_vector_add(&node->inputs, &tensor);
@@ -53,7 +55,9 @@ static bool adci_exec_node(struct adci_node *node){
         if(!tensor_ready) return false;
     }
     /* ALL INPUTS ARE READY FOR EXECUTION OF CURRENT NODE */
+    //printf("NODE TYPE: %s\n", adci_tensor_op_str(node->op));
     adci_tensor_compute_op(node->inputs, node->output, node->op);
+    node->computed = true;
     return true;
 }
 
@@ -147,6 +151,59 @@ struct adci_node * adci_graph_op_pad(struct adci_graph *gf, struct adci_node *no
     struct adci_tensor *padding_tensor = adci_tensor_init_vargs(2, ADCI_I32, node->output->n_dimension, 2);    
     adci_tensor_alloc_set(padding_tensor, padding);
     adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_tensor(padding_tensor));
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
+    return compute_node;
+}
+
+struct adci_node * adci_graph_op_conv2D(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input filter, uint32_t stride[2], uint32_t dims[3]){
+    struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
+    compute_node->op = ADCI_TENSOR_CONV2D;
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
+    adci_graph_handle_node_input(gf, compute_node, filter);
+    struct adci_tensor *stride_tensor = adci_tensor_init_vargs(1, ADCI_I32, 2);
+    adci_tensor_alloc_set(stride_tensor, stride);
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_tensor(stride_tensor));
+    struct adci_tensor *dims_tensor = adci_tensor_init_vargs(1, ADCI_I32, 3);
+    adci_tensor_alloc_set(dims_tensor, dims);
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_tensor(dims_tensor));
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
+    return compute_node;
+}
+
+struct adci_node * adci_graph_op_max_pool2D(struct adci_graph *gf, struct adci_node *node, uint32_t size[2], uint32_t stride[2], uint32_t dims[2]){
+    struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
+    compute_node->op = ADCI_TENSOR_MAX_POOL2D;
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
+    
+    struct adci_tensor *size_tensor = adci_tensor_init_vargs(1, ADCI_I32, 2);
+    adci_tensor_alloc_set(size_tensor, size);
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_tensor(size_tensor));
+    
+    struct adci_tensor *stride_tensor = adci_tensor_init_vargs(1, ADCI_I32, 2);
+    adci_tensor_alloc_set(stride_tensor, stride);
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_tensor(stride_tensor));
+    
+    struct adci_tensor *dims_tensor = adci_tensor_init_vargs(1, ADCI_I32, 2);
+    adci_tensor_alloc_set(dims_tensor, dims);
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_tensor(dims_tensor));
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
+    return compute_node;
+}
+
+struct adci_node * adci_graph_op_relu(struct adci_graph *gf, struct adci_node *node){
+    struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
+    compute_node->op = ADCI_TENSOR_RELU;
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
+    return compute_node;
+}
+
+struct adci_node * adci_graph_op_mul(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input operand){
+    struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
+    compute_node->op = ADCI_TENSOR_MUL;
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
+    adci_graph_handle_node_input(gf, compute_node, operand);
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
     return compute_node;
 }
 
@@ -155,6 +212,7 @@ struct adci_node * adci_graph_op_add(struct adci_graph *gf, struct adci_node *no
     compute_node->op = ADCI_TENSOR_ADD;
     adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
     adci_graph_handle_node_input(gf, compute_node, operand);
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
     return compute_node;
 }
 
@@ -163,6 +221,45 @@ struct adci_node * adci_graph_op_sub(struct adci_graph *gf, struct adci_node *no
     compute_node->op = ADCI_TENSOR_SUB;
     adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
     adci_graph_handle_node_input(gf, compute_node, operand);
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
+    return compute_node;
+}
+
+struct adci_node * adci_graph_op_transpose(struct adci_graph *gf, struct adci_node *node, uint32_t dims[]){
+    struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
+    compute_node->op = ADCI_TENSOR_TRANSPOSE;
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
+    struct adci_tensor *dims_tensor = adci_tensor_init_vargs(1, ADCI_I32, node->output->n_dimension);
+    adci_tensor_alloc_set(dims_tensor, dims);
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_tensor(dims_tensor));
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
+    return compute_node;
+}
+
+struct adci_node * adci_graph_op_reshape(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input shape){
+    struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
+    compute_node->op = ADCI_TENSOR_RESHAPE;
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
+    adci_graph_handle_node_input(gf, compute_node, shape);
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
+    return compute_node;
+}
+
+struct adci_node * adci_graph_op_fully_connected(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input weight){
+    struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
+    compute_node->op = ADCI_TENSOR_FULLY_CONNECTED;
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
+    adci_graph_handle_node_input(gf, compute_node, weight);
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
+    return compute_node;
+}
+
+struct adci_node * adci_graph_op_softmax(struct adci_graph *gf, struct adci_node *node, struct adci_graph_input dims){
+    struct adci_node *compute_node = adci_graph_init_node(gf, NULL);
+    compute_node->op = ADCI_TENSOR_SOFTMAX;
+    adci_graph_handle_node_input(gf, compute_node, adci_graph_op_input_node(node));
+    adci_graph_handle_node_input(gf, compute_node, dims);
+    adci_tensor_compute_op_shape(compute_node->inputs, compute_node->output, compute_node->op);
     return compute_node;
 }
 
@@ -178,6 +275,11 @@ struct adci_vector adci_graph_compute(struct adci_graph *gf){
     for(unsigned int i = 0; i < gf->inputs.length; i++){
         struct adci_node *current = *(struct adci_node **)adci_vector_get(&gf->inputs, i);
         adci_graph_compute_helper(current);
+    }
+    /* RESET COMPUTED STATE */
+    for(unsigned int i = 0; i < gf->nodes.length; i++){
+        struct adci_node *current = *(struct adci_node **)adci_vector_get(&gf->nodes, i);
+        current->computed = false;
     }
     /* BUILD THE OUTPUT TENSORS VECTOR */
     struct adci_vector outputs = adci_vector_init(sizeof(struct adci_tensor *));
