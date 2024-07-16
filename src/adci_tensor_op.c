@@ -291,11 +291,12 @@ static struct adci_output_format adci_tensor_op_padding_format(struct adci_vecto
 
 static struct adci_output_format adci_tensor_op_reshape_format(struct adci_vector inputs){
     ADCI_ASSERT(inputs.length == 2);
-    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
     struct adci_tensor *shape = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
     ADCI_ASSERT(shape->n_dimension == 1);
     ADCI_ASSERT(shape->data != NULL);
     ADCI_ASSERT(shape->dtype == ADCI_I32);
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    (void) tensor;
     ADCI_ASSERT(adci_tensor_element_count(tensor) == adci_tensor_element_count_ext(shape->shape[0], shape->data));
     struct adci_output_format output_format = {.n_dimension = shape->shape[0]};
     memcpy(output_format.shape, shape->data, output_format.n_dimension * sizeof(uint32_t));
