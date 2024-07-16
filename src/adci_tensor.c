@@ -7,6 +7,7 @@
 
 /* PRIVATE FUNCTIONS */
 
+/* TODO, FIX COMPILE WARNINGS */
 static void adci_tensor_print_helper(const struct adci_tensor *input, unsigned int dim, unsigned int offset){
     ADCI_ASSERT(dim < ADCI_TENSOR_MAX_DIM);
     /* TAB PREFIX */
