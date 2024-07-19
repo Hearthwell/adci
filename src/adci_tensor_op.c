@@ -782,7 +782,7 @@ void ADCI_EXIT_POINT adci_tensor_conv2D_args(
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
-/* FILTER TENSOR HAS TO BE IN THE SHAPE [OUT_CHANNEL, WIDTH, HEIGHT, IN_CHANNEL]*/
+/* FILTER TENSOR HAS TO BE IN THE SHAPE [OUT_CHANNEL, HEIGHT, WIDTH, IN_CHANNEL]*/
 void ADCI_EXIT_POINT adci_tensor_conv2D(struct adci_vector inputs, struct adci_tensor *output){
     ADCI_ASSERT(inputs.length == 4);
     struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
