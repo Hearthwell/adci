@@ -67,7 +67,7 @@ static void * adci_tensor_get_element_helper(const struct adci_tensor *tensor, v
 
 /* END PRIVATE FUNCTIONS */
 
-unsigned int adci_tensor_element_count(struct adci_tensor *tensor){
+unsigned int adci_tensor_element_count(const struct adci_tensor *tensor){
     return adci_tensor_element_count_ext(tensor->n_dimension, tensor->shape);
 }
 
