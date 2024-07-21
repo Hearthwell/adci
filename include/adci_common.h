@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <assert.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 /* PRESENT ON API FUNCTIONS, ANY FUNCTION WITHOUT THIS MACRO ON THE SIGNATURE IS NOT TO BE CALLED DIRECTLY */
 #define ADCI_API
@@ -24,6 +26,9 @@
 #define ADCI_ALLOC(_size) malloc(_size)
 #define ADCI_REALLOC(_ptr, _size) realloc(_ptr, _size)
 #define ADCI_FREE(_ptr) free(_ptr)
+#define ADCI_OPEN(_path, _oflag, ...) open(_path, _oflag, ##__VA_ARGS__)
+#define ADCI_CLOSE(_fd) close(_fd)
+#define ADCI_SEEK(_fd, _offset, _position) lseek(_fd, _offset, _position)
 
 #ifdef ADCI_BUILD_DEBUG
 #define ADCI_ASSERT(_condition) assert(_condition)
@@ -53,6 +58,7 @@ struct adci_vector adci_vector_from_array(void *elements, unsigned int count, un
 bool adci_vector_add(struct adci_vector *vector, const void *element);
 bool adci_vector_remove(struct adci_vector *vector, const void *element);
 bool adci_vector_has(const struct adci_vector *vector, const void *element);
+unsigned int adci_vector_find(const struct adci_vector *vector, const void *element);
 void * adci_vector_get(const struct adci_vector *vector, unsigned int index);
 void adci_vector_free(struct adci_vector *vector);
 

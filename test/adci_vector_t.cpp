@@ -70,3 +70,17 @@ TEST(ADCI_VECTOR_SUITE_NAME, adci_vector_has){
     EXPECT_FALSE(status);
     adci_vector_free(&vector);
 }
+
+TEST(ADCI_VECTOR_SUITE_NAME, adci_vector_find){
+    struct adci_vector vector = adci_vector_init(sizeof(unsigned int));
+    const unsigned int value = 109;
+    adci_vector_add(&vector, &value);
+    EXPECT_EQ(*((unsigned int *)vector.data), value);
+    EXPECT_EQ(vector.length, 1);
+    int index = adci_vector_find(&vector, &value);
+    EXPECT_EQ(index, 0);
+    const unsigned int invalid = 10;
+    index = adci_vector_find(&vector, &invalid);
+    EXPECT_EQ(index, vector.length);
+    adci_vector_free(&vector);
+}
