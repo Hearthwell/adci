@@ -70,6 +70,9 @@ struct adci_node * adci_graph_op_softmax(struct adci_graph *gf, struct adci_node
 struct adci_graph_input adci_graph_op_input_tensor(struct adci_tensor *tensor);
 struct adci_graph_input adci_graph_op_input_node(struct adci_node *node);
 
+int adci_graph_dump(const struct adci_graph *graph, const char *path);
+struct adci_graph adci_graph_load(const char *path);
+
 /* RETURN vector<struct adci_tensor *> */
 struct adci_vector adci_graph_compute(struct adci_graph *gf);
 

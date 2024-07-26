@@ -91,6 +91,7 @@ struct adci_tensor * adci_tensor_init_vargs(unsigned int n_dims, enum adci_tenso
 }
 
 void adci_tensor_alloc(struct adci_tensor *tensor){
+    if(tensor->data) return;
     tensor->data = ADCI_ALLOC(adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype));
 }
 

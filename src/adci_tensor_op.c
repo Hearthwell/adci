@@ -879,9 +879,10 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
 }
 
 void ADCI_EXIT_POINT adci_tensor_compute_op_shape(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
+    /* NO INPUTS IN THIS CASE */
+    if(op == ADCI_TENSOR_INPUT) return;
     struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
     switch(op){
-    case ADCI_TENSOR_INPUT:
     case ADCI_TENSOR_ADD:
     case ADCI_TENSOR_SUB:
     case ADCI_TENSOR_COPY:
@@ -950,6 +951,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op_shape(struct adci_vector inputs, str
     }break;
     case ADCI_TENSOR_BATCH_MATMUL:
     case ADCI_TENSOR_TRANSPOSE_CONV:
+    default:
         ADCI_ASSERT("OUTPUT SIZE FUNCTIONS NOT IMPLEMENTED FOR OP" == 0);
     }
 }

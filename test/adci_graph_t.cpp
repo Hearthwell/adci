@@ -106,6 +106,47 @@ TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_op_add_compute){
     adci_graph_free(&graph);
 }
 
+TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_dump_load){
+    struct adci_graph graph = adci_graph_init();
+    struct adci_node *first = adci_graph_op_input(&graph, adci_tensor_init_vargs(2, ADCI_F32, 4, 4));
+    struct adci_node *second = adci_graph_op_input(&graph, adci_tensor_init_vargs(2, ADCI_F32, 4, 4));
+    adci_graph_op_add(&graph, first, adci_graph_op_input_node(second));
+    int status = adci_graph_dump(&graph, "out/test.adci");
+    EXPECT_EQ(status, 0);
+    adci_graph_free(&graph);
+    struct adci_graph loaded = adci_graph_load("out/test.adci");
+    EXPECT_EQ(loaded.inputs.length, 2);
+    EXPECT_EQ(loaded.nodes.length, 3);
+    adci_node *add_node = *(adci_node **)adci_vector_get(&loaded.nodes, 2); 
+    EXPECT_EQ(add_node->op, ADCI_TENSOR_ADD);
+    EXPECT_EQ(loaded.tensors.length, 3);
+    adci_graph_free(&loaded);
+}
+
+TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_dump_load_execute){
+    struct adci_graph graph = adci_graph_init();
+    struct adci_node *first = adci_graph_op_input(&graph, adci_tensor_init_vargs(2, ADCI_F32, 4, 4));
+    struct adci_node *second = adci_graph_op_input(&graph, adci_tensor_init_vargs(2, ADCI_F32, 4, 4));
+    adci_graph_op_add(&graph, first, adci_graph_op_input_node(second));
+    int status = adci_graph_dump(&graph, "out/test.adci");
+    EXPECT_EQ(status, 0);
+    adci_graph_free(&graph);
+    struct adci_graph loaded = adci_graph_load("out/test.adci");
+    const float value = 1.f;
+    for(unsigned int i = 0; i < loaded.inputs.length; i++){
+        struct adci_node *input = *(struct adci_node **)adci_vector_get(&loaded.inputs, i);
+        adci_tensor_alloc(input->output);
+        adci_tensor_fill(input->output, &value);
+    }
+    struct adci_vector outputs = adci_graph_compute(&loaded);
+    EXPECT_EQ(outputs.length, 1);
+    struct adci_tensor *output = *(struct adci_tensor **)adci_vector_get(&outputs, 0); 
+    for(unsigned int i = 0; i < adci_tensor_element_count(output); i++)
+        EXPECT_FLOAT_EQ(((float *)output->data)[i], 2 * value);
+    adci_vector_free(&outputs);
+    adci_graph_free(&loaded);
+}
+
 TEST(ADCI_GRAPH_SUITE_NAME, adci_graph_compute_GENERIC_API){
     /* TODO, IMPLEMENT */
 }
