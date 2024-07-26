@@ -56,7 +56,8 @@ int main(){
 - [x] Implement basic neural network as example (mnist digit recognizer)
 - [ ] Add support for importing model from onnx format
 - [ ] Add support for importing model from tensorflow-lite format
-- [ ] Add support for saving/loading compute graph and network weigths into/from file
+- [ ] Add support for importing pytorch model weights
+- [x] Add support for saving/loading compute graph and network weigths into/from file
 - [ ] Add Multiple Thread support to tensor operations 
 - [ ] Implement Ultralytics YOLOV8 model
 - [ ] Implement TwinLiteNet model
