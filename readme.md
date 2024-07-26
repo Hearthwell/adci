@@ -58,6 +58,7 @@ int main(){
 - [ ] Add support for importing model from tensorflow-lite format
 - [ ] Add support for importing pytorch model weights
 - [x] Add support for saving/loading compute graph and network weigths into/from file
+- [ ] Add support for visualizing network graph (like in netron)
 - [ ] Add Multiple Thread support to tensor operations 
 - [ ] Implement Ultralytics YOLOV8 model
 - [ ] Implement TwinLiteNet model
