@@ -74,57 +74,80 @@ static void adci_graph_compute_helper(struct adci_node *root){
 }
 
 static void adci_graph_dump_tensor(int fd, const struct adci_tensor *tensor){
+    int status = 0;
+    (void)status;
     unsigned int current = ADCI_SEEK(fd, 0, SEEK_CUR);
     /* ADD PADDING FOR UINT32 ALLIGNMENT */
-    for(unsigned int i = 0; i < current % sizeof(uint32_t); i++)
-        write(fd, (uint8_t[]){ADCI_PADDING_VALUE_U8}, sizeof(uint8_t));
+    for(unsigned int i = 0; i < current % sizeof(uint32_t); i++){
+        status = write(fd, (uint8_t[]){ADCI_PADDING_VALUE_U8}, sizeof(uint8_t));
+        ADCI_ASSERT(status == sizeof(uint8_t));
+    }
     /* WRITE TENSOR SIZE */
-    write(fd, &tensor->n_dimension, sizeof(uint32_t));
+    status = write(fd, &tensor->n_dimension, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     for(unsigned int i = 0; i < ADCI_TENSOR_MAX_DIM; i++){
-        if(i < tensor->n_dimension) write(fd, tensor->shape + i, sizeof(uint32_t));
-        else write(fd, (uint32_t[]){0}, sizeof(uint32_t));
+        if(i < tensor->n_dimension) status = write(fd, tensor->shape + i, sizeof(uint32_t));
+        else status = write(fd, (uint32_t[]){0}, sizeof(uint32_t));
+        ADCI_ASSERT(status == sizeof(uint32_t));
     }
     /* WRITE TENSOR DTYPE */
-    write(fd, (uint32_t[]){(uint32_t) tensor->dtype}, sizeof(uint32_t));
+    status = write(fd, (uint32_t[]){(uint32_t) tensor->dtype}, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
 
     /* WRITE TENSOR DATA */
     /* ALLIGN DATA, USEFUL FOR 64 BIT DTYPE IMPLEMENTATION */
     current = ADCI_SEEK(fd, 0, SEEK_CUR);
     const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
-    for(unsigned int i = 0; i < current % element_size; i++)
-        write(fd, (uint8_t[]){ADCI_PADDING_VALUE_U8}, 1);
-    write(fd, tensor->data, adci_tensor_element_count(tensor) * element_size);
+    for(unsigned int i = 0; i < current % element_size; i++){
+        status = write(fd, (uint8_t[]){ADCI_PADDING_VALUE_U8}, sizeof(uint8_t));
+        ADCI_ASSERT(status == sizeof(uint8_t));
+    }
+    const unsigned int data_size = adci_tensor_element_count(tensor) * element_size;
+    status = write(fd, tensor->data, data_size);
+    ADCI_ASSERT(status > 0 && (unsigned int)status == data_size);
 }
 
 static void adci_graph_dump_node(int fd, const struct adci_graph *graph, const struct adci_vector weight_tensors, const struct adci_node *node){
+    int status = 0;
+    (void)status;
     /* ALLIGN FOR UINT32 */
     unsigned int current_offset = ADCI_SEEK(fd, 0, SEEK_CUR);
-    for(unsigned int i = 0; i < current_offset % sizeof(uint32_t); i++)
-        write(fd, (uint8_t[]){ADCI_PADDING_VALUE_U8}, 1);
+    for(unsigned int i = 0; i < current_offset % sizeof(uint32_t); i++){
+        status = write(fd, (uint8_t[]){ADCI_PADDING_VALUE_U8}, sizeof(uint8_t));
+        ADCI_ASSERT(status == sizeof(uint8_t));
+    }
     /* SAVE NODE TYPE */
-    write(fd, (uint32_t[]){(uint32_t)node->op}, sizeof(uint32_t));
+    status = write(fd, (uint32_t[]){(uint32_t)node->op}, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     /* SAVE THE NUMBER OF PARENT NODES */
-    write(fd, (uint32_t[]){(uint32_t)node->parents.length}, sizeof(uint32_t));
+    status = write(fd, (uint32_t[]){(uint32_t)node->parents.length}, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     /* SAVE THE PARENT NODES INDECES */
     for(unsigned int i = 0; i < node->parents.length; i++){
         struct adci_node *current = *(struct adci_node **)adci_vector_get(&node->parents, i);
         /* GET THE INDEX OF THE NODE */
         /* TODO, SHOULD USE HASH-MAP INSTEAD OF LOOPING THROUGH THE NODES */
         const unsigned int index = adci_vector_find(&graph->nodes, &current);
-        write(fd, (uint32_t[]){(uint32_t)index}, sizeof(uint32_t));
+        status = write(fd, (uint32_t[]){(uint32_t)index}, sizeof(uint32_t));
+        ADCI_ASSERT(status == sizeof(uint32_t));
     }
     /* SAVE THE NUMBER OF WEIGHT TENSORS */
-    write(fd, (uint32_t[]){(uint32_t)(node->inputs.length - node->parents.length)}, sizeof(uint32_t));
+    status = write(fd, (uint32_t[]){(uint32_t)(node->inputs.length - node->parents.length)}, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     /* SAVE THE TENSOR WEIGHTS (TENSORS NOT FROM PARENT NODES) INDECES IN CORRECT ORDER */
     for(unsigned int i = node->parents.length; i < node->inputs.length; i++){
         struct adci_tensor *current = *(struct adci_tensor **)adci_vector_get(&node->inputs, i);
         const unsigned int index = adci_vector_find(&weight_tensors, &current);
-        write(fd, (uint32_t[]){(uint32_t)index}, sizeof(uint32_t));
+        status = write(fd, (uint32_t[]){(uint32_t)index}, sizeof(uint32_t));
+        ADCI_ASSERT(status == sizeof(uint32_t));
     }
     /* SAVE SHAPE INFO ONLY IF INPUT TO GRAPH */
     if(node->op == ADCI_TENSOR_INPUT){
-        write(fd, &node->output->n_dimension, sizeof(uint32_t));
-        write(fd, node->output->shape, sizeof(node->output->shape));
+        status = write(fd, &node->output->n_dimension, sizeof(uint32_t));
+        ADCI_ASSERT(status == sizeof(uint32_t));
+        status = write(fd, node->output->shape, sizeof(node->output->shape));
+        ADCI_ASSERT(status == sizeof(node->output->shape));
+
     }
     /* NO NEED TO SAVE INFORMATION ABOUT NEXT TENSORS, SINCE WE SAVE THE PARENT NODES */
     
@@ -133,13 +156,18 @@ static void adci_graph_dump_node(int fd, const struct adci_graph *graph, const s
 }
 
 static struct adci_tensor * adci_graph_parse_tensor(int fd){
+    int status = 0;
+    (void)status;
     struct adci_tensor *tensor = ADCI_ALLOC(sizeof(struct adci_tensor));
     unsigned int current = ADCI_SEEK(fd, 0, SEEK_CUR);
     ADCI_SEEK(fd, current % sizeof(uint32_t), SEEK_CUR);
-    read(fd, &tensor->n_dimension, sizeof(uint32_t));
-    read(fd, tensor->shape, ADCI_TENSOR_MAX_DIM * sizeof(uint32_t));
+    status = read(fd, &tensor->n_dimension, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
+    status = read(fd, tensor->shape, ADCI_TENSOR_MAX_DIM * sizeof(uint32_t));
+    ADCI_ASSERT(status == ADCI_TENSOR_MAX_DIM * sizeof(uint32_t));
     uint32_t tensor_dtype = 0;
-    read(fd, &tensor_dtype, sizeof(uint32_t));
+    status = read(fd, &tensor_dtype, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     tensor->dtype = (enum adci_tensor_type) tensor_dtype;
     const unsigned int data_size = adci_tensor_element_count(tensor) * adci_tensor_dtype_size(tensor->dtype); 
     tensor->data = ADCI_ALLOC(data_size);
@@ -147,7 +175,8 @@ static struct adci_tensor * adci_graph_parse_tensor(int fd){
     /* MOVE TO BEGINNING OF DATA */
     current = ADCI_SEEK(fd, 0, SEEK_CUR);
     ADCI_SEEK(fd, current % adci_tensor_dtype_size(tensor->dtype), SEEK_CUR);
-    read(fd, tensor->data, data_size);
+    status = read(fd, tensor->data, data_size);
+    ADCI_ASSERT(status > 0 && (unsigned int)status == data_size);
     return tensor;
 }
 
@@ -160,31 +189,40 @@ struct adci_temp_node{
     struct adci_vector weight_tensors;
 };
 static struct adci_temp_node adci_graph_parse_node(int fd){
+    int status = 0;
+    (void)status;
     unsigned int node_offset = ADCI_SEEK(fd, 0, SEEK_CUR);
     node_offset = ADCI_SEEK(fd, node_offset % sizeof(uint32_t), SEEK_CUR);
     struct adci_temp_node node = {0};
     node.parents = adci_vector_init(sizeof(uint32_t));
     node.weight_tensors = adci_vector_init(sizeof(uint32_t));
     uint32_t node_op = 0;
-    read(fd, &node_op, sizeof(uint32_t));
+    status = read(fd, &node_op, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     node.op = (enum adci_tensor_op)node_op;
     uint32_t num_parent_nodes = 0;
-    read(fd, &num_parent_nodes, sizeof(uint32_t));
+    status = read(fd, &num_parent_nodes, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     for(unsigned int i = 0; i < num_parent_nodes; i++){
         uint32_t current = 0;
-        read(fd, &current, sizeof(uint32_t));
+        status = read(fd, &current, sizeof(uint32_t));
+        ADCI_ASSERT(status == sizeof(uint32_t));
         adci_vector_add(&node.parents, &current);
     }
     uint32_t num_weight_tensors = 0;
-    read(fd, &num_weight_tensors, sizeof(uint32_t));
+    status = read(fd, &num_weight_tensors, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     for(unsigned int i = 0; i < num_weight_tensors; i++){
         uint32_t current = 0;
-        read(fd, &current, sizeof(uint32_t));
+        status = read(fd, &current, sizeof(uint32_t));
+        ADCI_ASSERT(status == sizeof(uint32_t));
         adci_vector_add(&node.weight_tensors, &current);
     }
     if(node.op == ADCI_TENSOR_INPUT){
-        read(fd, &node.n_dimension, sizeof(uint32_t));
-        read(fd, node.shape, sizeof(node.shape));
+        status = read(fd, &node.n_dimension, sizeof(uint32_t));
+        ADCI_ASSERT(status == sizeof(uint32_t));
+        status = read(fd, node.shape, sizeof(node.shape));
+        ADCI_ASSERT(status == sizeof(node.shape));
     }
     return node;
 }
@@ -410,6 +448,8 @@ struct adci_vector adci_graph_compute(struct adci_graph *gf){
 }
 
 int adci_graph_dump(const struct adci_graph *graph, const char *path){
+    int status = 0;
+    (void)status;
     int fd = ADCI_OPEN(path, O_WRONLY | O_CREAT, 0660);
     if(fd < 0){
         ADCI_LOG(ADCI_ERROR, "Could Not Open File: %s", path);
@@ -418,7 +458,8 @@ int adci_graph_dump(const struct adci_graph *graph, const char *path){
 
     /* TODO, START BY DUMPING ALL THE META-DATA */
     /* WRITE END OF META-DATA TOKEN */
-    write(fd, (uint32_t[]){ADCI_SECTION_END_TOKEN_U32}, sizeof(uint32_t));
+    status = write(fd, (uint32_t[]){ADCI_SECTION_END_TOKEN_U32}, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
 
     /* DUMP ALL THE NON-INPUT TENSOR WEIGHTS */
     struct adci_vector weight_tensors = adci_vector_init(sizeof(struct adci_tensor *));
@@ -433,7 +474,8 @@ int adci_graph_dump(const struct adci_graph *graph, const char *path){
     }
 
     /* DUMP THE NUMBER OF WEIGHT TENSORS */
-    write(fd, (uint32_t[]){(uint32_t)weight_tensors.length}, sizeof(uint32_t));
+    status = write(fd, (uint32_t[]){(uint32_t)weight_tensors.length}, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     /* DUMP ACTUAL TENSORS */
     for(unsigned int i = 0; i < weight_tensors.length; i++){
         struct adci_tensor *current = *(struct adci_tensor **)adci_vector_get(&weight_tensors, i);
@@ -441,10 +483,12 @@ int adci_graph_dump(const struct adci_graph *graph, const char *path){
     }
 
     /* WRITE SEPERATOR BETWEEN TENSORS AND NODES */
-    write(fd, (uint32_t[]){ADCI_SECTION_END_TOKEN_U32}, sizeof(uint32_t));
+    status = write(fd, (uint32_t[]){ADCI_SECTION_END_TOKEN_U32}, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
 
     /* WRITE NODE COUNT */
-    write(fd, (uint32_t[]){(uint32_t)graph->nodes.length}, sizeof(uint32_t));
+    status = write(fd, (uint32_t[]){(uint32_t)graph->nodes.length}, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
 
     /* DUMP ALL THE NODES */
     for(unsigned int i = 0; i < graph->nodes.length; i++){
@@ -458,6 +502,8 @@ int adci_graph_dump(const struct adci_graph *graph, const char *path){
 }
 
 struct adci_graph adci_graph_load(const char *path){
+    int status = 0;
+    (void)status;
     int fd = ADCI_OPEN(path, O_RDONLY);
     int successful = true;
     if(fd < 0){
@@ -467,27 +513,31 @@ struct adci_graph adci_graph_load(const char *path){
     struct adci_graph graph = adci_graph_init();
     struct adci_vector weights = adci_vector_init(sizeof(struct adci_tensor *));
     uint32_t buffer = 0;
-    read(fd, &buffer, sizeof(uint32_t));
+    status = read(fd, &buffer, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     if(buffer != ADCI_SECTION_END_TOKEN_U32){
         ADCI_LOG(ADCI_ERROR, "WRONG GRAPH FILE FORMAT, WRONG START TOKEN");
         successful = false;
         goto cleanup;
     }
     uint32_t weight_count = 0;
-    read(fd, &weight_count, sizeof(uint32_t));
+    status = read(fd, &weight_count, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     for(unsigned int i = 0; i < weight_count; i++){
         struct adci_tensor *current = adci_graph_parse_tensor(fd);
         adci_set_add(&graph.tensors, &current);
         adci_vector_add(&weights, &current);
     }
-    read(fd, &buffer, sizeof(uint32_t));
+    status = read(fd, &buffer, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     if(buffer != ADCI_SECTION_END_TOKEN_U32){
         ADCI_LOG(ADCI_ERROR, "WRONG SEPARATOR TOKEN BETWEEN TENSORS AND NODES");
         successful = false;
         goto cleanup;
     }
     uint32_t node_count = 0;
-    read(fd, &node_count, sizeof(uint32_t));
+    status = read(fd, &node_count, sizeof(uint32_t));
+    ADCI_ASSERT(status == sizeof(uint32_t));
     for(unsigned int i = 0; i < node_count; i++){
         struct adci_temp_node temp_node = adci_graph_parse_node(fd); 
         /* ALL PARENT NODES FOR CURRENT NODE SHOULD ALREADY HAVE BEEN PROCESSED */
