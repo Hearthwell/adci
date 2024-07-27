@@ -230,7 +230,8 @@ static void adci_single_channel_conv(
     }
 }
 
-static void adci_compute_pool2d(
+/* RETURNS WHERE THE POOL RESUTL HAS BEEN WRITTEN IN OUTPUT TENSOR */
+static void * adci_compute_pool2d(
     const struct adci_tensor *tensor, 
     const struct adci_tensor *size,
     const struct adci_tensor *stride,
@@ -264,6 +265,32 @@ static void adci_compute_pool2d(
             pool_op(tensor->data + (tensor_offset + curr_inner_tensor_width_offset + curr_inner_tensor_height_offset) * element_size, output_data, output_data);
         }
     }
+    return output_data;
+}
+
+/* POOL FUNCTIONS IMPLEMENTATION */
+typedef void (*adci_pool2D_op)(
+    const struct adci_tensor *tensor, 
+    const struct adci_tensor *size, 
+    const struct adci_tensor *stride, 
+    const struct adci_tensor *dims,
+    struct adci_tensor *output,
+    struct adci_multi_dim_counter tensor_counter,
+    struct adci_multi_dim_counter output_counter,
+    unsigned int width, unsigned int height);
+
+static void adci_tensor_max_pool2D_op(
+    const struct adci_tensor *tensor, 
+    const struct adci_tensor *size, 
+    const struct adci_tensor *stride, 
+    const struct adci_tensor *dims,
+    struct adci_tensor *output,
+    struct adci_multi_dim_counter tensor_counter,
+    struct adci_multi_dim_counter output_counter,
+    unsigned int width, unsigned int height
+){
+    single_op_template_fn_t max_op = single_max_op_template_fns[tensor->dtype * ADCI_NUM_SUPPORTED_TYPES + tensor->dtype];
+    adci_compute_pool2d(tensor, size, stride, dims, output, tensor_counter, output_counter, width, height, max_op);
 }
 
 /* GET OUTPUT FORMAT FOR NON-TRIVIAL OPERATIONS */
@@ -303,7 +330,7 @@ static struct adci_output_format adci_tensor_op_reshape_format(struct adci_vecto
     return output_format;
 }
 
-static struct adci_output_format adci_tensor_op_max_pool2D_format(struct adci_tensor *tensor, struct adci_tensor *size, struct adci_tensor *stride, struct adci_tensor *dims){
+static struct adci_output_format adci_tensor_op_pool2D_format(struct adci_tensor *tensor, struct adci_tensor *size, struct adci_tensor *stride, struct adci_tensor *dims){
     ADCI_ASSERT(dims->n_dimension == 1 && dims->shape[0] == 2);
     ADCI_ASSERT(size->n_dimension == 1 && size->shape[0] == 2);
     ADCI_ASSERT(stride->n_dimension == 1 && stride->shape[0] == 2);
@@ -736,16 +763,15 @@ void ADCI_EXIT_POINT adci_tensor_mul(struct adci_vector inputs, struct adci_tens
     if(tensor == output) ADCI_FREE(temp.data);
 }
 
-void ADCI_EXIT_POINT adci_tensor_max_pool2D(struct adci_vector inputs, struct adci_tensor *output){
-    ADCI_ASSERT(inputs.length == 4);
-    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
-    /* HEIGHT, WIDTH ORDER */
-    struct adci_tensor *size   = *(struct adci_tensor **)adci_vector_get(&inputs, 1); 
-    struct adci_tensor *stride = *(struct adci_tensor **)adci_vector_get(&inputs, 2);
-    /* SPECIFIES THE 2 DIMENSIONS TO BE CONSIDERED FOR THE 2D POOL [HEIGHT_DIM, WIDTH_DIM]*/
-    struct adci_tensor *dims   = *(struct adci_tensor **)adci_vector_get(&inputs, 3);
-    
-    struct adci_output_format output_format = adci_tensor_op_max_pool2D_format(tensor, size, stride, dims);
+void ADCI_EXIT_POINT adci_tensor_generic_pool2D_args(
+    struct adci_tensor *tensor, 
+    struct adci_tensor *size, 
+    struct adci_tensor *stride,
+    struct adci_tensor *dims,
+    struct adci_tensor *output,
+    adci_pool2D_op pool2D_op)
+    {
+    struct adci_output_format output_format = adci_tensor_op_pool2D_format(tensor, size, stride, dims);
     struct adci_tensor temp = *tensor;
     if(tensor == output) output->data = NULL;
     unsigned int output_volume = adci_prepare_output_tensor(output_format.shape, output_format.n_dimension, tensor->dtype, output) / adci_tensor_dtype_size(temp.dtype);
@@ -757,17 +783,37 @@ void ADCI_EXIT_POINT adci_tensor_max_pool2D(struct adci_vector inputs, struct ad
     struct adci_multi_dim_counter output_counter = adci_tensor_init_multidim_counter(output, free_dims, dims->shape[0]);
     struct adci_multi_dim_counter tensor_counter = adci_tensor_init_multidim_counter(&temp, free_dims, dims->shape[0]);
     const unsigned int matrix_count = output_volume / (output->shape[adci_tensor_get_i32(dims, 0)] * output->shape[adci_tensor_get_i32(dims, 1)]);
-    single_op_template_fn_t max_op = single_max_op_template_fns[temp.dtype * ADCI_NUM_SUPPORTED_TYPES + temp.dtype];
     for(unsigned int i = 0; i < matrix_count; i++){
         for(unsigned int width = 0; width < output->shape[adci_tensor_get_i32(dims, 0)]; width++){
             for(unsigned int height = 0; height < output->shape[adci_tensor_get_i32(dims, 1)]; height++)
-                adci_compute_pool2d(&temp, size, stride, dims, output, tensor_counter, output_counter, width, height, max_op);
+                pool2D_op(&temp, size, stride, dims, output, tensor_counter, output_counter, width, height);
         }
         /* PASS TO NEXT 2D PLANE */
         adci_tensor_increase_counter(&output_counter);
         adci_tensor_increase_counter(&tensor_counter);
     }
     if(tensor == output) ADCI_FREE(temp.data);
+}
+
+void ADCI_EXIT_POINT adci_tensor_max_pool2D_args(
+    struct adci_tensor *tensor, 
+    struct adci_tensor *size, 
+    struct adci_tensor *stride,
+    struct adci_tensor *dims,
+    struct adci_tensor *output)
+    {
+    adci_tensor_generic_pool2D_args(tensor, size, stride, dims, output, adci_tensor_max_pool2D_op);
+}
+
+void ADCI_EXIT_POINT adci_tensor_max_pool2D(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 4);
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
+    /* HEIGHT, WIDTH ORDER */
+    struct adci_tensor *size   = *(struct adci_tensor **)adci_vector_get(&inputs, 1); 
+    struct adci_tensor *stride = *(struct adci_tensor **)adci_vector_get(&inputs, 2);
+    /* SPECIFIES THE 2 DIMENSIONS TO BE CONSIDERED FOR THE 2D POOL [HEIGHT_DIM, WIDTH_DIM]*/
+    struct adci_tensor *dims   = *(struct adci_tensor **)adci_vector_get(&inputs, 3);
+    adci_tensor_max_pool2D_args(tensor, size, stride, dims, output);
 }
 
 /*@stride: [HEIGHT, WIDTH] ORDER */
@@ -985,7 +1031,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op_shape(struct adci_vector inputs, str
         struct adci_tensor *size   = *(struct adci_tensor **)adci_vector_get(&inputs, 1); 
         struct adci_tensor *stride = *(struct adci_tensor **)adci_vector_get(&inputs, 2);
         struct adci_tensor *dims   = *(struct adci_tensor **)adci_vector_get(&inputs, 3);
-        struct adci_output_format output_format = adci_tensor_op_max_pool2D_format(tensor, size, stride, dims);
+        struct adci_output_format output_format = adci_tensor_op_pool2D_format(tensor, size, stride, dims);
         output->n_dimension = output_format.n_dimension;
         memcpy(output->shape, output_format.shape, output_format.n_dimension * sizeof(uint32_t));
     }break;

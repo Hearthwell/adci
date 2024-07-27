@@ -59,6 +59,12 @@ void ADCI_EXIT_POINT adci_tensor_reduce_max_args(
     struct adci_tensor *axis, 
     struct adci_tensor *keepdims, 
     struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_max_pool2D_args(
+    struct adci_tensor *tensor, 
+    struct adci_tensor *size, 
+    struct adci_tensor *stride,
+    struct adci_tensor *dims,
+    struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_conv2D_args(
     struct adci_tensor *tensor,
     struct adci_tensor *filter,
