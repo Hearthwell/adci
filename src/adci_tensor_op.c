@@ -1019,7 +1019,8 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_REDUCE_MAX: return adci_tensor_reduce_max(inputs, output);
     case ADCI_TENSOR_CONCAT: return adci_tensor_concat(inputs, output);
     case ADCI_TENSOR_MUL: return adci_tensor_mul(inputs, output);
-    case ADCI_TENSOR_MAX_POOL2D:  return adci_tensor_max_pool2D(inputs, output);
+    case ADCI_TENSOR_MAX_POOL2D: return adci_tensor_max_pool2D(inputs, output);
+    case ADCI_TENSOR_AVG_POOL2D: return adci_tensor_avg_pool2D(inputs, output);
     case ADCI_TENSOR_CONV2D: return adci_tensor_conv2D(inputs, output);
     case ADCI_TENSOR_TRANSPOSE: return adci_tensor_transpose(inputs, output);
     case ADCI_TENSOR_FULLY_CONNECTED: return adci_tensor_fully_connected(inputs, output);
@@ -1133,9 +1134,9 @@ const char * adci_tensor_op_str(enum adci_tensor_op op){
         OP_STR_CASE(ADCI_TENSOR_CONV2D);
         OP_STR_CASE(ADCI_TENSOR_TRANSPOSE);
         OP_STR_CASE(ADCI_TENSOR_FULLY_CONNECTED);
-
         OP_STR_CASE(ADCI_TENSOR_BATCH_MATMUL);
         OP_STR_CASE(ADCI_TENSOR_AVG_POOL2D);
+
         OP_STR_CASE(ADCI_TENSOR_TRANSPOSE_CONV);
         default: return "INVALID OP";
     }
