@@ -684,6 +684,45 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_max_pool2D_BHWC){
     ADCI_FREE(output.data);
 }
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_avg_pool2D){
+    unsigned int shape[] = {1, 1, 4, 4};
+    float values[][4] = {
+        {1.f, 2.f , 5.f , 6.f },
+        {0.f, 6.f , 10.f, 6.f },
+        {1.f, 20.f, 5.f , 6.f },
+        {1.f, 2.f , 5.f , 30.f},
+    };
+    adci_tensor *tensor = adci_tensor_init(sizeof(shape)/sizeof(unsigned int), shape, ADCI_F32);
+    adci_tensor_alloc_set(tensor, values);
+    unsigned int size_data[] = {2, 2};
+    adci_tensor *size   = adci_tensor_init_vargs(1, ADCI_I32, 2);
+    adci_tensor_alloc_set(size, size_data);
+    unsigned int stride_data[] = {2, 2};
+    adci_tensor *stride = adci_tensor_init_vargs(1, ADCI_I32, 2);
+    adci_tensor_alloc_set(stride, stride_data);
+    unsigned int dims_data[] = {2, 3};
+    adci_tensor *dims = adci_tensor_init_vargs(1, ADCI_I32, 2);
+    adci_tensor_alloc_set(dims, dims_data);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+    adci_tensor_avg_pool2D_args(tensor, size, stride, dims, &output);
+    EXPECT_EQ(output.n_dimension, 4);
+    EXPECT_EQ(output.shape[0], 1);
+    EXPECT_EQ(output.shape[1], 1);
+    EXPECT_EQ(output.shape[2], 2);
+    EXPECT_EQ(output.shape[3], 2);
+    EXPECT_EQ(output.dtype, tensor->dtype);
+    EXPECT_FLOAT_EQ(((float *)output.data)[0], 2.25f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[1], 6.75f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[2], 6.0f);
+    EXPECT_FLOAT_EQ(((float *)output.data)[3], 11.5f);
+    adci_tensor_free(tensor);
+    adci_tensor_free(size);
+    adci_tensor_free(stride);
+    adci_tensor_free(dims);
+    ADCI_FREE(output.data);
+}
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_conv2D_BWHC){
     unsigned int shape[] = {1 ,4, 4, 1};
     float values[][4] = {
@@ -939,10 +978,6 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_batch_mathmult_same_size){
     float expected_row[] = {24.0000f, 28.0000f, 32.0000f, 36.0000f};
     for(unsigned int i = 0; i < output.shape[1] * output.shape[2]; i++)
         EXPECT_FLOAT_EQ(((float *)output.data)[i], expected_row[i % (sizeof(expected_row) / sizeof(float))]);
-    adci_tensor_print(first);
-    adci_tensor_print(second);
-    adci_tensor_print(&output);
-
     ADCI_FREE(output.data);
     adci_tensor_free(first);
     adci_tensor_free(second);
@@ -971,9 +1006,6 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_batch_mathmult){
     EXPECT_EQ(output.shape[0], 1);
     EXPECT_EQ(output.shape[1], first->shape[1]);
     EXPECT_EQ(output.shape[2], second->shape[2]);
-    adci_tensor_print(first);
-    adci_tensor_print(second);
-    adci_tensor_print(&output);
     float expected_output[1][2][3] = {{
         {113.479996f, 134.5f, 136.76f  },
         {90.734f, 141.03f, 104.451996f}

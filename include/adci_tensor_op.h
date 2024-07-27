@@ -22,8 +22,8 @@ enum adci_tensor_op{
     ADCI_TENSOR_TRANSPOSE,
     ADCI_TENSOR_FULLY_CONNECTED,
     ADCI_TENSOR_BATCH_MATMUL,
-
     ADCI_TENSOR_AVG_POOL2D,
+
     ADCI_TENSOR_TRANSPOSE_CONV,
 };
 
@@ -40,6 +40,7 @@ void ADCI_EXIT_POINT adci_tensor_reduce_max(struct adci_vector inputs, struct ad
 void ADCI_EXIT_POINT adci_tensor_concat(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_mul(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_max_pool2D(struct adci_vector inputs, struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_avg_pool2D(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_conv2D(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_transpose(struct adci_vector inputs, struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, struct adci_tensor *output);
@@ -60,6 +61,12 @@ void ADCI_EXIT_POINT adci_tensor_reduce_max_args(
     struct adci_tensor *keepdims, 
     struct adci_tensor *output);
 void ADCI_EXIT_POINT adci_tensor_max_pool2D_args(
+    struct adci_tensor *tensor, 
+    struct adci_tensor *size, 
+    struct adci_tensor *stride,
+    struct adci_tensor *dims,
+    struct adci_tensor *output);
+void ADCI_EXIT_POINT adci_tensor_avg_pool2D_args(
     struct adci_tensor *tensor, 
     struct adci_tensor *size, 
     struct adci_tensor *stride,
