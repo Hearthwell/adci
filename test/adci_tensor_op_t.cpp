@@ -921,6 +921,70 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_conv2d_tflite_comp){
     adci_tensor_free(tensor);
 }
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_batch_mathmult_same_size){
+    adci_tensor *first = adci_tensor_init_vargs(3, ADCI_F32, 1, 4, 4);
+    adci_tensor_alloc(first);
+    const float first_value = 1.f;
+    adci_tensor_fill(first, &first_value);
+    adci_tensor *second = adci_tensor_init_vargs(3, ADCI_F32, 1, 4, 4);
+    adci_tensor_alloc(second);
+    for(unsigned int i = 0; i < second->shape[1] * second->shape[2]; i++)
+        ((float*)second->data)[i] = static_cast<float>(i);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+    adci_tensor_batch_matmult_args(first, second, &output);
+    EXPECT_EQ(output.shape[0], 1);
+    EXPECT_EQ(output.shape[1], first->shape[1]);
+    EXPECT_EQ(output.shape[2], second->shape[2]);
+    float expected_row[] = {24.0000f, 28.0000f, 32.0000f, 36.0000f};
+    for(unsigned int i = 0; i < output.shape[1] * output.shape[2]; i++)
+        EXPECT_FLOAT_EQ(((float *)output.data)[i], expected_row[i % (sizeof(expected_row) / sizeof(float))]);
+    adci_tensor_print(first);
+    adci_tensor_print(second);
+    adci_tensor_print(&output);
+
+    ADCI_FREE(output.data);
+    adci_tensor_free(first);
+    adci_tensor_free(second);
+}
+
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_batch_mathmult){
+    adci_tensor *first = adci_tensor_init_vargs(3, ADCI_F32, 1, 2, 6);
+    float first_values[1][2][6] = {{
+        {2.f, 6.f, 8.f, 1.2f, 7.5f, 4.6f},
+        {8.9f, 4.5f, 2.7, 5.0f, 8.99f, 0.46f}
+    }};
+    adci_tensor_alloc_set(first, first_values);
+    adci_tensor *second = adci_tensor_init_vargs(3, ADCI_F32, 1, 6, 3);
+    float second_values[1][6][3] = {{
+        { 2.f, 3.0f, 1.0f},
+        {2.5f, 6.7f, 9.5f},
+        {4.6f, 2.5f, 4.3f},
+        {7.9f, 6.7f, 3.5f},
+        {0.6f, 4.6f, 2.4f},
+        {9.5f, 5.6f, 4.6f}
+    }};
+    adci_tensor_alloc_set(second, second_values);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+    adci_tensor_batch_matmult_args(first, second, &output);
+    EXPECT_EQ(output.shape[0], 1);
+    EXPECT_EQ(output.shape[1], first->shape[1]);
+    EXPECT_EQ(output.shape[2], second->shape[2]);
+    adci_tensor_print(first);
+    adci_tensor_print(second);
+    adci_tensor_print(&output);
+    float expected_output[1][2][3] = {{
+        {113.479996f, 134.5f, 136.76f  },
+        {90.734f, 141.03f, 104.451996f}
+    }};
+    for(unsigned int i = 0; i < output.shape[1] * output.shape[2]; i++)
+        EXPECT_EQ(((float*)output.data)[i], ((float*)expected_output)[i]);
+    ADCI_FREE(output.data);
+    adci_tensor_free(first);
+    adci_tensor_free(second);
+}
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_compute_op){
     /* TODO, IMPLEMENT */
 }

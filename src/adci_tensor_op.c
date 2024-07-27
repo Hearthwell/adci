@@ -440,6 +440,19 @@ static struct adci_output_format adci_tensor_op_reduce_max_format(struct adci_te
     return output_format;
 }
 
+static struct adci_output_format adci_tensor_op_batch_matmult_format(struct adci_tensor *first, struct adci_tensor *second){
+    ADCI_ASSERT(first->n_dimension == 3 && second->n_dimension == 3);
+    /* SAME BATCH COUNT */
+    ADCI_ASSERT(first->shape[0] == second->shape[0]);
+    ADCI_ASSERT(first->shape[2] == second->shape[1]);
+    struct adci_output_format output_format = {0};
+    output_format.n_dimension = first->n_dimension;
+    output_format.shape[0] = first->shape[0];
+    output_format.shape[1] = first->shape[1];
+    output_format.shape[2] = second->shape[2];
+    return output_format;
+}
+
 /* END PRIVATE FUNCTIONS */
 
 void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tensor *output){
@@ -853,6 +866,58 @@ void ADCI_EXIT_POINT adci_tensor_fully_connected(struct adci_vector inputs, stru
     if(input == output) ADCI_FREE(temp.data);
 }
 
+void ADCI_EXIT_POINT adci_tensor_batch_matmult_args(
+    struct adci_tensor *first, 
+    struct adci_tensor *second, 
+    struct adci_tensor *output)
+    {
+    struct adci_output_format output_format = adci_tensor_op_batch_matmult_format(first, second);
+    struct adci_tensor first_cp = *first;
+    struct adci_tensor second_cp = *second;
+    void *data_copy = NULL;
+    if(first == output || second == output){
+        data_copy = output->data;
+        output->data = NULL;
+    } 
+    const unsigned int element_size = adci_tensor_dtype_size(first->dtype);
+    const unsigned int second_element_size = adci_tensor_dtype_size(second->dtype);
+    const single_op_template_fn_t mult_op = single_mult_op_template_fns[first->dtype * ADCI_NUM_SUPPORTED_TYPES + second->dtype];
+    const single_op_template_fn_t add_op = single_add_op_template_fns[first->dtype * ADCI_NUM_SUPPORTED_TYPES + first->dtype];
+    adci_prepare_output_tensor(output_format.shape, output_format.n_dimension, first->dtype, output);
+    for(unsigned int batch_idx = 0; batch_idx < first_cp.shape[0]; batch_idx++){
+        /* RUN MATMUL ON CURRENT MATRICES */
+        const unsigned int bfoffset = batch_idx * first_cp.shape[1] * first_cp.shape[2];
+        const unsigned int bsoffset = batch_idx * second_cp.shape[1] * second_cp.shape[2];
+        for(unsigned int i = 0; i < first_cp.shape[1]; i++){
+            const unsigned int cfoffset = i * first_cp.shape[2];
+            for(unsigned int j = 0; j < second_cp.shape[2]; j++){
+                const unsigned int csoffset = j;
+                /* RUN DOT PRODUCT */
+                uint8_t container[element_size];
+                adci_reset_value(container, first_cp.dtype);
+                uint8_t temp[element_size];
+                for(unsigned int k = 0; k < first_cp.shape[2]; k++){
+                    const unsigned int ffoffset = (bfoffset + cfoffset + k) * element_size;
+                    const unsigned int sfoffset = (bsoffset + csoffset + k * second_cp.shape[2]) * second_element_size;
+                    mult_op((uint8_t *)first_cp.data + ffoffset, (uint8_t *)second_cp.data + sfoffset, temp);
+                    add_op(temp, container, container);
+                }
+                /* WRITE RESULT TO OUTPUT TENSOR */
+                const unsigned int output_offset = (i * output->shape[2] + j) * element_size;
+                memcpy((uint8_t *)output->data + output_offset, container, element_size); 
+            }
+        }
+    }
+    if(data_copy) ADCI_FREE(data_copy);
+}
+
+void ADCI_EXIT_POINT adci_tensor_batch_matmult(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 2);
+    struct adci_tensor *first = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    struct adci_tensor *second = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
+    adci_tensor_batch_matmult_args(first, second, output);
+}
+
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
     switch (op){
     case ADCI_TENSOR_INPUT: return;
@@ -872,6 +937,7 @@ void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct ad
     case ADCI_TENSOR_CONV2D: return adci_tensor_conv2D(inputs, output);
     case ADCI_TENSOR_TRANSPOSE: return adci_tensor_transpose(inputs, output);
     case ADCI_TENSOR_FULLY_CONNECTED: return adci_tensor_fully_connected(inputs, output);
+    case ADCI_TENSOR_BATCH_MATMUL: return adci_tensor_batch_matmult(inputs, output);
     default:
         ADCI_LOG(ADCI_ERROR, "OPERATION: %s NOT IMPLEMENTED YET", adci_tensor_op_str(op));
         ADCI_ASSERT(false);
@@ -949,7 +1015,12 @@ void ADCI_EXIT_POINT adci_tensor_compute_op_shape(struct adci_vector inputs, str
         output->n_dimension = output_format.n_dimension;
         memcpy(output->shape, output_format.shape, output_format.n_dimension * sizeof(uint32_t));
     }break;
-    case ADCI_TENSOR_BATCH_MATMUL:
+    case ADCI_TENSOR_BATCH_MATMUL:{
+        struct adci_tensor *second = *(struct adci_tensor **)adci_vector_get(&inputs, 1);
+        struct adci_output_format output_format = adci_tensor_op_batch_matmult_format(tensor, second);
+        output->n_dimension = output_format.n_dimension;
+        memcpy(output->shape, output_format.shape, output_format.n_dimension * sizeof(uint32_t));
+    }break;
     case ADCI_TENSOR_TRANSPOSE_CONV:
     default:
         ADCI_ASSERT("OUTPUT SIZE FUNCTIONS NOT IMPLEMENTED FOR OP" == 0);
