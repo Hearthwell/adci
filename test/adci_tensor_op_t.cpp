@@ -1017,6 +1017,34 @@ TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_batch_mathmult){
     adci_tensor_free(second);
 }
 
+TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_argmax){
+    adci_tensor *tensor = adci_tensor_init_vargs(3, ADCI_F32, 1, 6, 3);
+    float values[1][6][3] = {{
+        { 2.f, 3.0f, 1.0f},
+        {2.5f, 6.7f, 9.5f},
+        {4.6f, 2.5f, 4.3f},
+        {7.9f, 6.9f, 3.5f},
+        {0.6f, 4.6f, 2.4f},
+        {9.5f, 5.6f, 4.6f}
+    }};
+    adci_tensor_alloc_set(tensor, values);
+    adci_tensor *dim = adci_tensor_init_vargs(1, ADCI_I32, 1);
+    adci_tensor_alloc(dim);
+    adci_tensor_set_i32(dim, 1, 0);
+    adci_tensor output;
+    memset(&output, 0, sizeof(adci_tensor));
+    adci_tensor_argmax_args(tensor, dim, NULL, &output);
+    EXPECT_EQ(output.n_dimension, 2);
+    EXPECT_EQ(output.shape[0], 1);
+    EXPECT_EQ(output.shape[1], 3);
+    uint32_t expected_output[1][3] = {{ 5, 3, 1 }};
+    for(unsigned int i = 0; i < 3; i++)
+        EXPECT_EQ(((uint32_t *)output.data)[i], ((uint32_t *)expected_output)[i]);
+    ADCI_FREE(output.data);
+    adci_tensor_free(tensor);
+    adci_tensor_free(dim);
+}
+
 TEST(ADCI_TENSOR_OP_SUITE_NAME, adci_tensor_compute_op){
     /* TODO, IMPLEMENT */
 }

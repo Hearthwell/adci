@@ -499,6 +499,24 @@ static struct adci_output_format adci_tensor_op_batch_matmult_format(struct adci
     return output_format;
 }
 
+static struct adci_output_format adci_tensor_argmax_format(struct adci_tensor *tensor, struct adci_tensor *dim, struct adci_tensor *keep_dim){
+    struct adci_output_format output_format = {0};
+    ADCI_ASSERT(dim->n_dimension == 1 && dim->shape[0] == 1 && dim->dtype == ADCI_I32);
+    const uint32_t reduced_dim = adci_tensor_get_i32(dim, 0);
+    ADCI_ASSERT(reduced_dim < tensor->n_dimension);
+    ADCI_ASSERT(keep_dim == NULL || (keep_dim->n_dimension == 1 && keep_dim->shape[0] == 1));
+    const bool keep_reduced_dim = (keep_dim != NULL) && (adci_tensor_get_i32(keep_dim, 0) == 1);
+    memcpy(output_format.shape, tensor->shape, sizeof(output_format.shape));
+    output_format.shape[reduced_dim] = 1;
+    output_format.n_dimension = tensor->n_dimension;
+    if(!keep_reduced_dim){
+        output_format.n_dimension -= 1;
+        for(unsigned int i = reduced_dim; i < tensor->n_dimension - 1; i++)
+            output_format.shape[i] = output_format.shape[i + 1];
+    }
+    return output_format;
+}
+
 /* END PRIVATE FUNCTIONS */
 
 void ADCI_EXIT_POINT adci_tensor_add(struct adci_vector inputs, struct adci_tensor *output){
@@ -1002,6 +1020,50 @@ void ADCI_EXIT_POINT adci_tensor_batch_matmult(struct adci_vector inputs, struct
     struct adci_tensor *first = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
     struct adci_tensor *second = *(struct adci_tensor **)adci_vector_get(&inputs, 0);
     adci_tensor_batch_matmult_args(first, second, output);
+}
+
+void ADCI_EXIT_POINT adci_tensor_argmax_args(struct adci_tensor *tensor, struct adci_tensor *dim, struct adci_tensor *keep_dim, struct adci_tensor *output){
+    struct adci_output_format output_format = adci_tensor_argmax_format(tensor, dim, keep_dim);
+    const uint32_t reduced_dim = adci_tensor_get_i32(dim, 0);
+    const unsigned int count = adci_tensor_element_count(tensor) / tensor->shape[reduced_dim];
+    struct adci_multi_dim_counter counter = adci_tensor_alldim_counter_except(tensor, reduced_dim);
+    const unsigned int element_size = adci_tensor_dtype_size(tensor->dtype);
+    single_op_template_fn_t max_op = single_max_op_template_fns[tensor->dtype * ADCI_NUM_SUPPORTED_TYPES + tensor->dtype];
+    struct adci_tensor temp = *tensor;
+    if(tensor == output) output->data = NULL;
+    adci_prepare_output_tensor(output_format.shape, output_format.n_dimension, ADCI_I32, output);
+    struct adci_multi_dim_counter output_counter = adci_tensor_alldim_counter(output);
+    const unsigned int output_element_size = adci_tensor_dtype_size(ADCI_I32);
+    for(unsigned int i = 0; i < count; i++){
+        /* FIND THE MAXIMUM IN REDUCED DIM FOR CURRENT CONFIG */
+        const unsigned int offset = adci_tensor_get_counter_offset(counter);
+        uint32_t index = 0;
+        uint8_t container[element_size];
+        memcpy(container, tensor->data + offset * element_size, element_size);
+        for(unsigned int j = 1; j < tensor->shape[reduced_dim]; j++){
+            const unsigned int foffset = offset + j * counter.precomputed_volumes[reduced_dim];
+            uint8_t temp[element_size];
+            memcpy(temp, container, element_size);
+            max_op((uint8_t *)tensor->data + foffset * element_size, container, container);
+            if(memcmp(temp, container, element_size) != 0) index = j;
+        }
+        /* WRITE TO OUTPUT TENSOR THE INDEX */
+        const unsigned int output_offset = adci_tensor_get_counter_offset(output_counter);
+        memcpy((uint8_t *)output->data + output_offset * output_element_size, &index, output_element_size);
+        adci_tensor_increase_counter(&output_counter);
+        adci_tensor_increase_counter(&counter);
+    }
+    if(tensor == output) ADCI_FREE(temp.data);
+}
+
+void ADCI_EXIT_POINT adci_tensor_argmax(struct adci_vector inputs, struct adci_tensor *output){
+    ADCI_ASSERT(inputs.length == 2 || inputs.length == 3);
+    struct adci_tensor *tensor = *(struct adci_tensor **)adci_vector_get(&inputs, 0); 
+    struct adci_tensor *dim = *(struct adci_tensor **)adci_vector_get(&inputs, 1); 
+    struct adci_tensor *keep_dim = NULL;
+    if(inputs.length == 3)
+        keep_dim = *(struct adci_tensor **)adci_vector_get(&inputs, 2); 
+    adci_tensor_argmax_args(tensor, dim, keep_dim, output);
 }
 
 void ADCI_EXIT_POINT adci_tensor_compute_op(struct adci_vector inputs, struct adci_tensor *output, enum adci_tensor_op op){
